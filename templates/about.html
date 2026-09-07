@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}About{% endblock %}
+
+{% block content %}
+<section class="page-intro about-intro">
+    <p class="eyebrow">Our mission</p>
+    <h1>Threat intelligence<br>made understandable.</h1>
+    <p>
+        ThreatLense is a cybersecurity threat intelligence dashboard designed to
+        help people recognize emerging risks, understand why they matter, and decide
+        what to do next.
+    </p>
+</section>
+
+<section class="about-grid">
+    <article class="about-panel about-story">
+        <p class="eyebrow">The purpose</p>
+        <h2>From scattered data to useful context</h2>
+        <p>
+            Cybersecurity teams receive information from many sources. Raw alerts alone
+            can be noisy and difficult to prioritize. ThreatLense organizes that data
+            into clear threat briefs with severity, confidence, category, and response guidance.
+        </p>
+        <p>
+            This IT401 project demonstrates how a focused web application can turn
+            complex security information into an approachable, decision-ready view.
+        </p>
+    </article>
+
+    <aside class="principles-panel">
+        <p class="eyebrow">What guides us</p>
+        <div class="principle"><span>01</span><div><h3>Clarity</h3><p>Present the most important intelligence without unnecessary noise.</p></div></div>
+        <div class="principle"><span>02</span><div><h3>Context</h3><p>Explain what a threat means, who it affects, and why it matters.</p></div></div>
+        <div class="principle"><span>03</span><div><h3>Action</h3><p>Connect every insight to a practical defensive next step.</p></div></div>
+    </aside>
+</section>
+
+<section class="process-section">
+    <div class="section-heading"><div><p class="eyebrow">Workflow</p><h2>How ThreatLense works</h2></div></div>
+    <div class="process-grid">
+        <article><span>Collect</span><p>Gather indicators and reports from trusted intelligence sources.</p></article>
+        <article><span>Analyze</span><p>Evaluate severity, relevance, confidence, and likely impact.</p></article>
+        <article><span>Communicate</span><p>Turn findings into concise briefs that support faster decisions.</p></article>
+    </div>
+</section>
+{% endblock %}

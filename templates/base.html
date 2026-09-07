@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="ThreatLense cybersecurity threat intelligence dashboard">
+    <title>{% block title %}ThreatLense{% endblock %} | Threat Intelligence</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <nav class="nav-shell" aria-label="Main navigation">
+            <a class="brand" href="{{ url_for('index') }}" aria-label="ThreatLense home">
+                <span class="brand-mark" aria-hidden="true">S</span>
+                <span><strong>ThreatLense</strong><small>Threat Intelligence</small></span>
+            </a>
+            <div class="nav-links">
+                <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active" aria-current="page"{% endif %}>Dashboard</a>
+                <a href="{{ url_for('menu') }}" {% if request.endpoint == 'menu' %}class="active" aria-current="page"{% endif %}>Threat Briefs</a>
+                <a href="{{ url_for('about') }}" {% if request.endpoint == 'about' %}class="active" aria-current="page"{% endif %}>About</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="page-shell">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-shell">
+            <p><strong>ThreatLense</strong> &mdash; Clear intelligence for a safer digital world.</p>
+            <p>Created by Nancy Perez &middot; IT401 Final Project</p>
+        </div>
+    </footer>
+</body>
+</html>

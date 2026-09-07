@@ -14,3 +14,15 @@ def client():
 def test_index(client):
     response = client.get("/")
     assert response.status_code == 200
+
+
+def test_about(client):
+    response = client.get("/about")
+    assert response.status_code == 200
+    assert b"Threat intelligence" in response.data
+
+
+def test_threat_briefs(client):
+    response = client.get("/menu")
+    assert response.status_code == 200
+    assert b"Threat briefs" in response.data

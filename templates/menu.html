@@ -1,26 +1,29 @@
+{% extends "base.html" %}
 
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>Cozy Cup Café Menu</title>
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='style.css') }}">
-</head>
+{% block title %}Threat Briefs{% endblock %}
 
-<body>
-    <main>
-        <h1>☕ Our Menu</h1>
+{% block content %}
+<section class="page-intro">
+    <p class="eyebrow">Analyst reports</p>
+    <h1>Threat briefs</h1>
+    <p>Concise summaries of notable threats, affected sectors, and recommended actions.</p>
+</section>
 
-        <h2>Coffee</h2>
-        <p>Espresso — $3.00</p>
-        <p>Latte — $4.50</p>
-        <p>Cold Brew — $4.00</p>
-
-        <h2>Bakery</h2>
-        <p>Croissant — $3.50</p>
-        <p>Blueberry Muffin — $3.00</p>
-
-    </main>
-</body>
-</html>
+<section class="brief-list">
+    <article class="brief-row">
+        <div><span class="risk-tag critical">Critical</span><span class="brief-id">TI-2026-091</span></div>
+        <div><h2>Ransomware activity targeting healthcare</h2><p>Review exposed services, enforce MFA, and validate offline backups.</p></div>
+        <span class="confidence">High confidence</span>
+    </article>
+    <article class="brief-row">
+        <div><span class="risk-tag high">High</span><span class="brief-id">TI-2026-086</span></div>
+        <div><h2>Enterprise cloud credential phishing</h2><p>Block identified domains and review anomalous identity-provider sessions.</p></div>
+        <span class="confidence">High confidence</span>
+    </article>
+    <article class="brief-row">
+        <div><span class="risk-tag medium">Medium</span><span class="brief-id">TI-2026-079</span></div>
+        <div><h2>Scanning of internet-facing edge devices</h2><p>Prioritize available security updates and restrict management interfaces.</p></div>
+        <span class="confidence">Medium confidence</span>
+    </article>
+</section>
+{% endblock %}

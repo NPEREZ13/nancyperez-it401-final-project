@@ -1,22 +1,63 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>IT401 Project</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
- 
-    <h1> ☕ The Perfect Cup</h1>
-     <h2>Fresh coffee, warm moments.</h2>
+{% extends "base.html" %}
 
-        <p>
-            Cozy Cup Café offers freshly brewed coffee in a relaxing and
-            welcoming atmosphere. Explore our menu and find your new favorite drink.
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-copy">
+        <p class="eyebrow"><span class="status-dot"></span> Intelligence systems operational</p>
+        <h1>See the signal.<br><span>Stop the threat.</span></h1>
+        <p class="hero-text">
+            ThreatLense brings emerging cyber threats, indicators of compromise,
+            and risk context into one focused dashboard.
         </p>
+        <div class="hero-actions">
+            <a class="button button-primary" href="{{ url_for('menu') }}">View threat briefs</a>
+            <a class="button button-secondary" href="{{ url_for('about') }}">How it works</a>
+        </div>
+    </div>
 
-        <p>Created by Nancy Perez</p>
+    <div class="radar-card" aria-label="Threat monitoring summary">
+        <div class="card-heading"><span>Live threat monitor</span><span class="live-label">LIVE</span></div>
+        <div class="radar" aria-hidden="true">
+            <span class="radar-sweep"></span>
+            <i class="blip blip-one"></i><i class="blip blip-two"></i><i class="blip blip-three"></i>
+        </div>
+        <div class="monitor-row"><span>Global telemetry</span><strong>ACTIVE</strong></div>
+    </div>
+</section>
 
-        <a href="{{ url_for('menu') }}" class="button">View Our Menu</a>
-</body>
-</html>
+<section class="metrics" aria-label="Threat summary">
+    <article class="metric-card severity-critical"><p>Critical alerts</p><strong>12</strong><span>Requires attention</span></article>
+    <article class="metric-card severity-high"><p>High-risk indicators</p><strong>38</strong><span>Under investigation</span></article>
+    <article class="metric-card severity-watch"><p>Sources monitored</p><strong>24</strong><span>Across the open web</span></article>
+    <article class="metric-card severity-safe"><p>Protection status</p><strong>98%</strong><span>Coverage score</span></article>
+</section>
+
+<section class="section-block">
+    <div class="section-heading">
+        <div><p class="eyebrow">Current landscape</p><h2>Priority intelligence</h2></div>
+        <a href="{{ url_for('menu') }}">View all briefs <span aria-hidden="true">&rarr;</span></a>
+    </div>
+    <div class="threat-grid">
+        <article class="threat-card">
+            <span class="risk-tag critical">Critical</span><p class="threat-type">Ransomware</p>
+            <h3>Healthcare sector campaign</h3>
+            <p>A coordinated intrusion campaign is targeting exposed remote-access services.</p>
+            <div class="threat-meta"><span>Updated 18 min ago</span><span>Confidence: High</span></div>
+        </article>
+        <article class="threat-card">
+            <span class="risk-tag high">High</span><p class="threat-type">Credential theft</p>
+            <h3>Cloud identity phishing</h3>
+            <p>New lure infrastructure is impersonating common enterprise login portals.</p>
+            <div class="threat-meta"><span>Updated 1 hr ago</span><span>Confidence: High</span></div>
+        </article>
+        <article class="threat-card">
+            <span class="risk-tag medium">Medium</span><p class="threat-type">Vulnerability</p>
+            <h3>Edge device exploitation</h3>
+            <p>Scanning activity has increased for unpatched internet-facing appliances.</p>
+            <div class="threat-meta"><span>Updated 3 hrs ago</span><span>Confidence: Medium</span></div>
+        </article>
+    </div>
+</section>
+{% endblock %}
