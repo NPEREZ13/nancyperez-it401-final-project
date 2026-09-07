@@ -1,0 +1,38 @@
+[
+    {
+        "id": "THR-001",
+        "name": "BlackCat Ransomware",
+        "category": "Ransomware",
+        "severity": "Critical",
+        "target": "Healthcare and critical infrastructure",
+        "description": "A financially motivated ransomware operation known for data theft, extortion, and disruption of essential services.",
+        "mitigation": "Require multifactor authentication, patch internet-facing systems, segment networks, and maintain tested offline backups."
+    },
+    {
+        "id": "THR-002",
+        "name": "Cloud Credential Phishing",
+        "category": "Credential Theft",
+        "severity": "High",
+        "target": "Enterprise cloud accounts",
+        "description": "Convincing login pages and social-engineering messages are used to capture employee credentials and session tokens.",
+        "mitigation": "Use phishing-resistant MFA, monitor unusual sign-ins, and block newly observed malicious domains."
+    },
+    {
+        "id": "THR-003",
+        "name": "Edge Device Exploitation",
+        "category": "Vulnerability",
+        "severity": "Medium",
+        "target": "Internet-facing network appliances",
+        "description": "Automated scanning identifies unpatched gateways and management interfaces that may provide initial network access.",
+        "mitigation": "Apply vendor updates, restrict administrative access, and review device logs for suspicious activity."
+    },
+    {
+        "id": "THR-004",
+        "name": "Business Email Compromise",
+        "category": "Social Engineering",
+        "severity": "High",
+        "target": "Finance and executive teams",
+        "description": "Attackers impersonate trusted contacts to redirect payments or convince employees to disclose sensitive information.",
+        "mitigation": "Verify payment changes out of band, enforce email authentication, and train staff to recognize impersonation attempts."
+    }
+]

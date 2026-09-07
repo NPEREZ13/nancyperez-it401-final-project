@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Explore Threats{% endblock %}
+
+{% block content %}
+<section class="page-intro">
+    <p class="eyebrow">Threat data store</p>
+    <h1>Explore intelligence</h1>
+    <p>
+        Review the threat records currently tracked by ThreatLense. This page is
+        generated from the JSON dataset stored in the application's data directory.
+    </p>
+</section>
+
+<form class="filter-panel" method="get" action="{{ url_for('explore') }}">
+    <div class="filter-field search-field">
+        <label for="q">Search intelligence</label>
+        <input
+            id="q"
+            name="q"
+            type="search"
+            value="{{ search_query }}"
+            placeholder="Name, target, keyword..."
+        >
+    </div>
+    <div class="filter-field">
+        <label for="severity">Severity</label>
+        <select id="severity" name="severity">
+            <option value="">All severities</option>
+            {% for severity in severities %}
+            <option value="{{ severity }}" {% if severity == selected_severity %}selected{% endif %}>{{ severity }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-field">
+        <label for="category">Category</label>
+        <select id="category" name="category">
+            <option value="">All categories</option>
+            {% for category in categories %}
+            <option value="{{ category }}" {% if category == selected_category %}selected{% endif %}>{{ category }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button class="button button-primary filter-button" type="submit">Apply filters</button>
+    {% if search_query or selected_severity or selected_category %}
+    <a class="clear-filter" href="{{ url_for('explore') }}">Clear</a>
+    {% endif %}
+</form>
+
+<section class="explore-summary" aria-label="Dataset summary">
+    <p><strong>{{ threats | length }}</strong> of {{ total_threats }} tracked threats</p>
+    <p><span class="status-dot"></span> Local intelligence feed loaded</p>
+</section>
+
+<section class="explore-grid" aria-label="Cybersecurity threats">
+    {% for threat in threats %}
+    <article class="explore-card">
+        <div class="explore-card-heading">
+            <span class="risk-tag {{ threat.severity | lower }}">{{ threat.severity }}</span>
+            <span class="threat-id">{{ threat.id }}</span>
+        </div>
+        <p class="threat-type">{{ threat.category }}</p>
+        <h2>{{ threat.name }}</h2>
+        <p>{{ threat.description }}</p>
+        <dl>
+            <div><dt>Primary target</dt><dd>{{ threat.target }}</dd></div>
+            <div><dt>Recommended action</dt><dd>{{ threat.mitigation }}</dd></div>
+        </dl>
+    </article>
+    {% else %}
+    <div class="empty-state">
+        <h2>No matching threats</h2>
+        <p>Try a broader search or clear your selected filters.</p>
+        <a href="{{ url_for('explore') }}">Clear all filters</a>
+    </div>
+    {% endfor %}
+</section>
+{% endblock %}

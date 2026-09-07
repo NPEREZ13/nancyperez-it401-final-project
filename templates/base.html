@@ -11,11 +11,12 @@
     <header class="site-header">
         <nav class="nav-shell" aria-label="Main navigation">
             <a class="brand" href="{{ url_for('index') }}" aria-label="ThreatLense home">
-                <span class="brand-mark" aria-hidden="true">S</span>
+                <span class="brand-mark" aria-hidden="true">T</span>
                 <span><strong>ThreatLense</strong><small>Threat Intelligence</small></span>
             </a>
             <div class="nav-links">
                 <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active" aria-current="page"{% endif %}>Dashboard</a>
+                <a href="{{ url_for('explore') }}" {% if request.endpoint == 'explore' %}class="active" aria-current="page"{% endif %}>Explore</a>
                 <a href="{{ url_for('menu') }}" {% if request.endpoint == 'menu' %}class="active" aria-current="page"{% endif %}>Threat Briefs</a>
                 <a href="{{ url_for('about') }}" {% if request.endpoint == 'about' %}class="active" aria-current="page"{% endif %}>About</a>
             </div>
