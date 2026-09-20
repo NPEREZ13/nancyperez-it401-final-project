@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Analyze IP{% endblock %}
+
+{% block content %}
+<section class="page-intro ip-intro">
+    <p class="eyebrow">IP threat intelligence</p>
+    <h1>Analyze an IP address</h1>
+    <p>Check an IPv4 or IPv6 address for malicious activity, anonymization services, and other security signals.</p>
+</section>
+
+<section class="ip-analysis-panel" aria-labelledby="lookup-heading">
+    <div>
+        <p class="eyebrow">Live lookup</p>
+        <h2 id="lookup-heading">Enter an address to investigate</h2>
+        <p class="form-help">Examples: <code>8.8.8.8</code> or <code>2001:4860:4860::8888</code></p>
+    </div>
+    <form class="ip-form" id="ip-analysis-form" method="post" action="{{ url_for('analyze_ip_address') }}">
+        <div class="filter-field">
+            <label for="ip-address">IPv4 or IPv6 address</label>
+            <input
+                id="ip-address"
+                name="ip_address"
+                type="text"
+                value="{{ submitted_ip }}"
+                placeholder="Enter an IP address"
+                required
+                autocomplete="off"
+                spellcheck="false"
+                aria-describedby="ip-help{% if error %} ip-error{% endif %}"
+                {% if error %}aria-invalid="true"{% endif %}
+            >
+            <small id="ip-help">Hostnames and web addresses are not accepted.</small>
+        </div>
+        <button class="button button-primary ip-submit" id="analyze-button" type="submit">Analyze IP</button>
+        <div class="loading-state" id="analysis-loading" role="status" aria-live="polite" hidden>
+            <span class="loading-spinner" aria-hidden="true"></span>
+            Checking threat intelligence&hellip;
+        </div>
+    </form>
+
+    {% if error %}
+    <div class="alert-error" id="ip-error" role="alert">
+        <strong>Analysis unavailable</strong>
+        <span>{{ error }}</span>
+    </div>
+    {% endif %}
+</section>
+
+{% if result %}
+<section class="ip-results" aria-live="polite">
+    <div class="result-summary risk-{{ result.risk_class }}">
+        <div>
+            <p class="eyebrow">Analysis complete</p>
+            <h2>{{ result.ip }}</h2>
+            <p>API Freaks threat intelligence result</p>
+        </div>
+        <div class="score-block">
+            <span class="risk-tag {{ result.risk_class }}">{{ result.risk_level }}</span>
+            <strong>{{ result.score }}<small>/100</small></strong>
+            <span>Threat score</span>
+        </div>
+    </div>
+
+    <div class="section-heading findings-heading">
+        <div><p class="eyebrow">Security profile</p><h2>Security findings</h2></div>
+        <p>{{ result.detected_count }} signal(s) detected</p>
+    </div>
+    <div class="finding-grid">
+        {# Display logic turns each extracted Boolean into a detected/clear card. #}
+        {% for label, detected in result.findings %}
+        <article class="finding-card {{ 'detected' if detected else 'clear' }}">
+            <span class="finding-status">{{ 'Detected' if detected else 'Not detected' }}</span>
+            <h3>{{ label }}</h3>
+            <span class="finding-icon" aria-hidden="true">{{ '!' if detected else '✓' }}</span>
+        </article>
+        {% endfor %}
+    </div>
+
+    {% if result.cloud_provider %}
+    <div class="provider-card">
+        <h2>Provider details</h2>
+        <dl>
+            <div><dt>Cloud provider</dt><dd>{{ result.cloud_provider }}</dd></div>
+        </dl>
+    </div>
+    {% endif %}
+
+    <div class="recommendation-card">
+        <p class="eyebrow">Recommended action</p>
+        <p>{{ result.recommendation }}</p>
+    </div>
+
+    <p class="score-note">Risk levels: 0–19 Low, 20–74 Medium, and 75–100 High. Results are indicators, not definitive proof of malicious activity.</p>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='ip_checker.js') }}" defer></script>
+{% endblock %}

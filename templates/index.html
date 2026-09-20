@@ -60,4 +60,90 @@
         </article>
     </div>
 </section>
+
+<section class="section-block breach-section" id="data-breaches">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">External intelligence</p>
+            <h2>Data Breach Intelligence</h2>
+        </div>
+        <a href="https://en.wikipedia.org/wiki/List_of_data_breaches" target="_blank" rel="noopener noreferrer">Wikipedia source <span aria-hidden="true">&nearr;</span></a>
+    </div>
+    <p class="breach-description">Cleaned public breach records showing the affected organization, year, scale, sector, and reported method.</p>
+
+    <form class="breach-filters" method="get" action="{{ url_for('index') }}#data-breaches">
+        <div class="filter-field breach-search-field">
+            <label for="breach-q">Organization search</label>
+            <input id="breach-q" name="breach_q" type="search" value="{{ breach_query }}" placeholder="Search organizations">
+        </div>
+        <div class="filter-field">
+            <label for="breach-year">Year</label>
+            <select id="breach-year" name="breach_year">
+                <option value="">All years</option>
+                {% for year in breach_years %}
+                <option value="{{ year }}" {% if year == selected_breach_year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="filter-field">
+            <label for="breach-type">Organization type</label>
+            <select id="breach-type" name="breach_type">
+                <option value="">All types</option>
+                {% for organization_type in breach_types %}
+                <option value="{{ organization_type }}" {% if organization_type == selected_breach_type %}selected{% endif %}>{{ organization_type }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button class="button button-primary filter-button" type="submit">Filter records</button>
+        <a class="clear-filter" href="{{ url_for('index') }}#data-breaches">Clear</a>
+    </form>
+
+    {% if breach_error %}
+    <div class="alert-error breach-alert" role="alert">
+        <strong>Records unavailable</strong>
+        <span>{{ breach_error }}</span>
+    </div>
+    {% else %}
+    <div class="breach-summary">
+        <p><strong>{{ breaches | length }}</strong> displayed</p>
+        <p>{{ breach_match_count }} matching / {{ breach_total_count }} total records</p>
+    </div>
+
+    {% if breaches %}
+    <div class="breach-table-wrap">
+        <table class="breach-table">
+            <thead>
+                <tr>
+                    <th scope="col">Organization / Entity</th>
+                    <th scope="col">Year</th>
+                    <th scope="col">Records affected</th>
+                    <th scope="col">Organization type</th>
+                    <th scope="col">Breach method</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for breach in breaches %}
+                <tr>
+                    <td data-label="Organization">{{ breach.entity }}</td>
+                    <td data-label="Year"><span class="year-badge">{{ breach.year }}</span></td>
+                    <td data-label="Records affected">{{ breach.records_affected }}</td>
+                    <td data-label="Organization type">{{ breach.organization_type }}</td>
+                    <td data-label="Breach method"><span class="method-badge">{{ breach.breach_method }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if breach_match_count > breach_display_limit %}
+    <p class="table-note">Showing the first {{ breach_display_limit }} records. Use the filters to narrow the results.</p>
+    {% endif %}
+    {% else %}
+    <div class="empty-state">
+        <h3>No matching breach records</h3>
+        <p>Try a different organization, year, or organization type.</p>
+        <a href="{{ url_for('index') }}#data-breaches">Clear breach filters</a>
+    </div>
+    {% endif %}
+    {% endif %}
+</section>
 {% endblock %}
