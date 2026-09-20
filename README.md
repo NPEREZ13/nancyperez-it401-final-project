@@ -216,6 +216,10 @@ The repository currently includes these screenshot files:
 
 ![ThreatLense homepage](docs/screenshots/homepage.png)
 
+## IP Page
+
+![ThreatLense homepage](docs/screenshots/image.png)
+
 ### Explore Page
 
 ![ThreatLense Explore page](docs/screenshots/explore.png)
