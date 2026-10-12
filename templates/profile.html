@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}My profile{% endblock %}
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ session['profile_csrf'] }}">{% endmacro %}
+{% block content %}
+<section class="page-intro">
+    <p class="eyebrow">My profile</p>
+    <h1>{{ session['user']['name'] }}</h1>
+    <p>{{ session['user']['email'] }}</p>
+    <p>Manage your devices and check their public IP threat reputation.</p>
+</section>
+{% if error %}<p class="alert-error" role="alert">{{ error }}</p>{% endif %}
+{% if not database_unavailable %}
+<div class="profile-grid">
+<section class="provider-card">
+    <h2>Add a device</h2>
+    <p class="form-help">Enter your device's public IPv4 or IPv6 address. Devices on the same Wi-Fi may share a public IP. Local addresses such as 192.168.x.x cannot be checked.</p>
+    <form class="profile-form" method="post" action="{{ url_for('profile.create') }}">
+        {{ csrf() }}
+        <div class="filter-field"><label for="device-name">Device name</label><input id="device-name" name="name" maxlength="80" placeholder="My laptop" required></div>
+        <div class="filter-field"><label for="device-ip">Public IP address</label><input id="device-ip" name="ip_address" maxlength="45" placeholder="Enter your public IP" required></div>
+        <button class="button button-primary" type="submit">Add device</button>
+    </form>
+</section>
+<section class="provider-card">
+    <h2>My devices</h2>
+    {% if devices %}
+    <form class="profile-form" method="get" action="{{ url_for('profile.index') }}">
+        <div class="filter-field"><label for="device-select">Select a device IP</label>
+        <select id="device-select" name="device">
+        {% for device in devices %}<option value="{{ device.id }}" {% if selected and selected.id == device.id %}selected{% endif %}>{{ device.name }} — {{ device.ip_address }}</option>{% endfor %}
+        </select></div>
+        <button class="button" type="submit">View device</button>
+    </form>
+    {% else %}<p>No devices saved yet. Add your first device to get started.</p>{% endif %}
+    {% if selected %}
+    <h3>{{ selected.name }}</h3>
+    <p><code>{{ selected.ip_address }}</code></p>
+    {% if result %}
+        <span class="risk-tag {{ result.risk_class }}">{{ result.risk_level }}</span>
+        <p>Threat score: <strong>{{ result.score }}/100</strong></p>
+        <p>Last checked: {{ selected.checked_at }} UTC</p>
+        <p>{{ result.recommendation }}</p>
+        <details><summary>Security findings</summary><ul>{% for label, detected in result.findings %}<li>{{ label }}: {{ 'Detected' if detected else 'Not detected' }}</li>{% endfor %}</ul></details>
+    {% else %}<p>Status: <strong>Not checked</strong></p>{% endif %}
+    <p class="form-help">This is IP threat reputation, not an online/offline indicator or a scan of your device. Saved results reflect the last check.</p>
+    <form class="profile-form" method="post" action="{{ url_for('profile.check', device_id=selected.id) }}">{{ csrf() }}<button class="button button-primary" type="submit">Check IP status</button></form>
+    <details><summary>Edit device</summary>
+        <form class="profile-form" method="post" action="{{ url_for('profile.edit', device_id=selected.id) }}">
+            {{ csrf() }}
+            <div class="filter-field"><label for="edit-name">Device name</label><input id="edit-name" name="name" value="{{ selected.name }}" maxlength="80" required></div>
+            <div class="filter-field"><label for="edit-ip">Public IP address</label><input id="edit-ip" name="ip_address" value="{{ selected.ip_address }}" maxlength="45" required></div>
+            <button class="button" type="submit">Save changes</button>
+        </form>
+    </details>
+    <details><summary>Delete device</summary><p>Delete {{ selected.name }} and its saved status?</p>
+        <form method="post" action="{{ url_for('profile.delete', device_id=selected.id) }}">{{ csrf() }}<button class="button" type="submit">Confirm delete</button></form>
+    </details>
+    {% endif %}
+</section>
+</div>
+{% endif %}
+{% endblock %}

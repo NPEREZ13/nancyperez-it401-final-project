@@ -268,3 +268,12 @@ h3 { line-height: 1.3; }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+.profile-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.5rem; }
+.profile-form { display: grid; gap: 1rem; margin-block: 1rem; }
+.profile-form textarea { width: 100%; padding: .8rem; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+.record-text { white-space: pre-wrap; }
+.profile-grid details { margin-block: 1rem; }
+.profile-grid summary { cursor: pointer; color: var(--green); }
+.profile-grid code, .profile-grid p { overflow-wrap: anywhere; }
+.nav-shell { flex-wrap: wrap; }
+@media (max-width: 800px) { .profile-grid { grid-template-columns: 1fr; } }

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if editing else 'Add' }} threat{% endblock %}
+{% block content %}
+<h1>{{ 'Edit' if editing else 'Add' }} threat record</h1>
+{% if error %}<p class="alert-error" role="alert">{{ error }}</p>{% endif %}
+<form class="profile-form provider-card" method="post">
+    <input type="hidden" name="csrf_token" value="{{ session['records_csrf'] }}">
+    <div class="filter-field"><label for="name">Threat name</label><input id="name" name="name" value="{{ record.get('name', '') }}" maxlength="120" required></div>
+    <div class="filter-field"><label for="severity">Severity</label><select id="severity" name="severity">{% for value in ['Low', 'Medium', 'High', 'Critical'] %}<option {% if record.get('severity') == value %}selected{% endif %}>{{ value }}</option>{% endfor %}</select></div>
+    <div class="filter-field"><label for="category">Category</label><input id="category" name="category" value="{{ record.get('category', '') }}" maxlength="80" required></div>
+    {% for field in ['description', 'mitigation'] %}<div class="filter-field"><label for="{{ field }}">{{ field|capitalize }}</label><textarea id="{{ field }}" name="{{ field }}" rows="5" maxlength="5000" required>{{ record.get(field, '') }}</textarea></div>{% endfor %}
+    <button class="button button-primary" type="submit">Save threat</button>
+    <a href="{{ url_for('threats.index') }}">Cancel</a>
+</form>
+{% endblock %}

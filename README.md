@@ -46,7 +46,7 @@ Risk classifications are:
 
 ## Information Model
 
-ThreatLense currently uses three logical record types.
+ThreatLense uses the following reference and acquired record types, plus the MySQL records described in the Assignment 3 section below.
 
 ### Local threat record
 
@@ -92,7 +92,11 @@ APIFREAKS_API_KEY=your-api-key-here
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `APIFREAKS_API_KEY` | Required for IP analysis | Authenticates server-side API Freaks requests |
-| `SECRET_KEY` | Recommended for deployment | Overrides Flask's development secret |
+| `SECRET_KEY` | Required for sign-in | Signs the Flask session; generate a random value |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Required for sign-in | Google web OAuth client credentials |
+| `MYSQL_HOST`, `MYSQL_PORT` | Required for saved records | Aiven MySQL hostname and assigned port |
+| `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE` | Required for saved records | Database credentials and database name |
+| `MYSQL_SSL_CA` | Required for saved records | Path to the downloaded Aiven CA certificate |
 | `FLASK_ENV` | Optional | Selects `development`, `production`, or the default configuration |
 | `AI_SERVICE_API_KEY` | Not currently used | Reserved for a possible future AI service |
 
@@ -138,9 +142,13 @@ source .venv/bin/activate
 python -m pip install -r requirements.txt
 ```
 
-### 4. Configure the API key
+### 4. Configure services
 
-Copy `.env.example` to `.env`, then replace the placeholder with your API Freaks key.
+Copy `.env.example` to `.env` and replace the placeholders with your API Freaks, Google OAuth, and Aiven MySQL settings. Use the port shown in Aiven, which may differ from 3306. Download the Aiven CA certificate to `certs/ca.pem`; each developer supplies their own certificate and credentials.
+
+Generate `SECRET_KEY` with `python -c "import secrets; print(secrets.token_hex(32))"`. In Google Auth Platform, register a Web application with the redirect URI `http://127.0.0.1:5000/auth/google/callback` and add your account as a test user. Authorized JavaScript origins can remain empty for this server-side flow.
+
+Run `python check_db.py` to verify connectivity, then run the two initialization commands below before opening the profile or threat-record pages.
 
 ### 5. Run the application
 
@@ -149,6 +157,30 @@ python app.py
 ```
 
 Open [http://127.0.0.1:5000](http://127.0.0.1:5000).
+
+### Profiles and personal threat records
+
+Sign in with Google, then use **My threats** to create, read, edit, and delete
+personal threat records. Each account can access only its own saved records.
+The Explore page continues to display the project's reference dataset.
+
+Use **My profile** to add a named device with a public IPv4 or IPv6 address,
+select a saved device, and click **Check IP status**. Results show the threat
+score, findings, and last-check time in UTC. This measures public IP reputation,
+not device health or online/offline status. Editing an IP clears its old result;
+failed checks preserve the previous timestamped result. Lookups use the existing
+`APIFREAKS_API_KEY` and may consume provider credits.
+
+For a new database, configure the `MYSQL_*` environment variables and CA
+certificate, then create the additional tables (existing tables are preserved):
+
+```powershell
+python -m flask --app app:create_app init-devices
+python -m flask --app app:create_app init-threats
+```
+
+Google sign-in also requires `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and a
+random `SECRET_KEY`. Restart Flask after configuration or code changes.
 
 ### 6. Run the tests
 
@@ -206,7 +238,9 @@ External response bodies and secret values are not displayed to users. Both exte
 - The in-memory scrape cache resets whenever the Flask process restarts and is not shared across multiple server processes.
 - Only the first 15 matching breach records are displayed; there is no pagination yet.
 - Local threat records are demonstration data rather than live advisories.
-- The project does not currently use a database or retain IP-analysis history.
+- Aiven MySQL stores personal threat records, saved devices, and the latest successful IP analysis per device. It does not retain a full lookup history.
+- Google identity details remain in the signed session; database rows are associated with the Google subject identifier.
+- The standalone Analyze IP page does not persist results; use Check IP status on a saved profile device to persist a lookup.
 
 ## Screenshots
 
@@ -228,13 +262,13 @@ The repository currently includes these screenshot files:
 
 ![ThreatLense severity filtering](docs/screenshots/filter.png)
 
-Screenshots for the new **IP Threat Checker** and **Data Breach Intelligence** sections have not been provided yet and still need to be captured and added to `docs/screenshots/`.
+Assignment 3 screenshots below show the new database-backed workflows. Older screenshots above document earlier assignment pages.
 
 ## Future Work
 
 - Add pagination or incremental loading for the breach dataset
-- Store optional IP-analysis history in a database without retaining unnecessary personal data
-- Add timestamps showing when external information was retrieved
+- Extend the latest saved device result into optional timestamped analysis history
+- Add retrieval timestamps to the standalone IP and breach pages
 - Add persistent caching suitable for multi-process production deployments
 - Add more local threat records and detail pages
 - Add charts for breach years, organization types, and methods
@@ -246,19 +280,30 @@ Screenshots for the new **IP Threat Checker** and **Data Breach Intelligence** s
 ```text
 threatlense/
 |-- app.py
+|-- database.py
+|-- check_db.py
+|-- schema_devices.sql
+|-- schema_threats.sql
 |-- config.py
 |-- requirements.txt
 |-- data/
 |   `-- threats.json
 |-- routes/
+|   |-- auth.py
+|   |-- profile.py
+|   |-- threats.py
 |   `-- main.py
 |-- services/
+|   |-- devices.py
 |   |-- data_breaches.py
 |   `-- ip_threat.py
 |-- static/
 |   |-- ip_checker.js
 |   `-- style.css
 |-- templates/
+|   |-- profile.html
+|   |-- threat_form.html
+|   |-- threat_records.html
 |   |-- analyze_ip.html
 |   |-- base.html
 |   |-- index.html
@@ -266,8 +311,68 @@ threatlense/
 |   |-- menu.html
 |   `-- about.html
 |-- tests/
+|   |-- test_auth.py
+|   |-- test_profile_records.py
 |   |-- test_app.py
 |   |-- test_data_breaches.py
 |   `-- test_ip_threat.py
 `-- README.md
 ```
+
+
+## Assignment 3: MySQL, CRUD, Organization, and Validation
+
+Branch: `nancyperez-it401-a3`.
+
+| Requirement | Implementation | Evidence |
+| --- | --- | --- |
+| Integrate MySQL | PyMySQL connects to Aiven with CA and hostname verification. Flask closes request connections automatically. Explicit CLI commands create tables without replacing existing data. | Database evidence screenshot; `database.py`, `schema_devices.sql`, `schema_threats.sql` |
+| Persist acquired information | A successful profile IP lookup saves the validated API result as JSON with a UTC timestamp in `profile_devices`. A fresh request reloads it from MySQL. | Profile screenshot showing the saved IP result |
+| Implement CRUD operations | Signed-in users create, read, update, and delete personal threat records through My threats. Device records also support CRUD. All queries are scoped by Google subject ID. | Threat list, edit, and delete screenshots |
+| Improve application organization | App factory registers separate authentication, profile, and threat blueprints. Database lifecycle, device persistence, external API access, templates, schemas, and tests have separate files. | Organization evidence screenshot and project structure above |
+| Validate incoming information | Server-side required-field and length checks, severity allowlist, public-IP normalization, CSRF protection, owner checks, parameterized SQL, and API response validation. | Validation screenshot and automated tests |
+
+### Added behavior
+
+- Google sign-in and POST logout, with OAuth state/ID-token validation and a verified-email requirement.
+- My profile displays the signed-in identity and a selector for saved device IPs.
+- My threats stores name, severity, category, description, and mitigation in `user_threats`.
+- Editing a device IP clears its old status. Failed lookups retain the last successful result and its timestamp.
+- Delete actions require an explicit confirmation button. Users cannot edit or delete another account's records.
+- The public Explore dataset remains reference material; personal CRUD records appear under My threats.
+
+### Validation and verification
+
+Run `python -m pytest -q`. The suite covers OAuth errors, missing state, session behavior, CSRF, CRUD, ownership, required fields, private IP rejection, lookup failures, and existing API/scraper behavior. Read-only page checks were also run against Aiven. The screenshots use a separate demonstration identity; they do not show a real user's email or credentials. Screenshot records are removed after capture.
+
+### MySQL integration
+
+This evidence page displays schema metadata and connection verification queried from Aiven, rather than exposing the connection credentials.
+
+![Aiven MySQL connection and schema evidence](docs/screenshots/a3-mysql.png)
+
+### Persisted IP information and profile
+
+The profile is reloaded after the lookup so the displayed result comes from the saved database row. IP reputation is not an online/offline check.
+
+![Profile with saved device and persisted IP status](docs/screenshots/a3-profile.png)
+
+### Read and delete threat records
+
+![Saved threat record and delete confirmation](docs/screenshots/a3-threat-records.png)
+
+### Create and update threat records
+
+![Threat record edit form](docs/screenshots/a3-threat-edit.png)
+
+### Incoming information validation
+
+The screenshot shows a server-side rejection of an incomplete threat form.
+
+![Required-field validation](docs/screenshots/a3-validation.png)
+
+### Application organization
+
+This evidence view lists the implemented modules and their responsibilities.
+
+![Application organization](docs/screenshots/a3-organization.png)

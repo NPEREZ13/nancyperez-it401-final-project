@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}My threat records{% endblock %}
+{% block content %}
+<section class="page-intro"><p class="eyebrow">My intelligence</p><h1>My threat records</h1><p>Create and manage your personal threat research.</p></section>
+{% if error %}<p class="alert-error" role="alert">{{ error }}</p>{% endif %}
+{% if not unavailable %}
+<a class="button button-primary" href="{{ url_for('threats.edit') }}">Add threat record</a>
+<div class="profile-grid">
+{% for record in records %}
+<article class="provider-card">
+    <p class="eyebrow">{{ record.severity }} · {{ record.category }}</p><h2>{{ record.name }}</h2>
+    <h3>Description</h3><p class="record-text">{{ record.description }}</p>
+    <h3>Mitigation</h3><p class="record-text">{{ record.mitigation }}</p>
+    <a class="button" href="{{ url_for('threats.edit', record_id=record.id) }}">Edit record</a>
+    <details><summary>Delete record</summary><p>Permanently delete {{ record.name }}?</p>
+    <form method="post" action="{{ url_for('threats.delete', record_id=record.id) }}"><input type="hidden" name="csrf_token" value="{{ session['records_csrf'] }}"><button class="button" type="submit">Confirm delete</button></form></details>
+</article>
+{% else %}<p>No threat records yet. Add your first record to get started.</p>{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

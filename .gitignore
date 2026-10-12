@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 venv/
 .env
+certs/*.pem
 instance/
 .pytest_cache/
 *.egg-info/

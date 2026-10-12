@@ -21,10 +21,26 @@
                 <a href="{{ url_for('menu') }}" {% if request.endpoint == 'menu' %}class="active" aria-current="page"{% endif %}>Threat Briefs</a>
                 <a href="{{ url_for('about') }}" {% if request.endpoint == 'about' %}class="active" aria-current="page"{% endif %}>About</a>
             </div>
+            <div class="nav-links">
+                {% if session.get('user') %}
+                <a href="{{ url_for('profile.index') }}">My profile</a>
+                <a href="{{ url_for('threats.index') }}">My threats</a>
+                <span>{{ session['user']['name'] }}</span>
+                <form action="{{ url_for('auth.logout') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ session.get('logout_csrf', '') }}">
+                    <button type="submit">Sign out</button>
+                </form>
+                {% else %}
+                <a href="{{ url_for('auth.login') }}">Sign in with Google</a>
+                {% endif %}
+            </div>
         </nav>
     </header>
 
     <main class="page-shell">
+        {% for message in get_flashed_messages() %}
+        <p role="status">{{ message }}</p>
+        {% endfor %}
         {% block content %}{% endblock %}
     </main>
 
