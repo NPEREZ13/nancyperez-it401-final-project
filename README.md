@@ -1,5 +1,51 @@
 # ThreatLense
 
+## Professor Walkthrough: Environment Setup
+
+The application's `.env` file contains private API keys, Google OAuth credentials,
+and Aiven MySQL connection settings. It is intentionally excluded from GitHub by
+`.gitignore`, so cloning this repository will not download my local `.env` file.
+
+1. Check out the submission branch: `git switch nancyperez-it401-a3`.
+2. Open the project root, the folder containing `app.py`, `config.py`, and
+   `.env.example`. On my computer this is
+   `C:\Users\nnanc\OneDrive\Desktop\It401\nancyperez-it401-final-project`.
+3. **If reviewing on my computer:** open `.env` in that folder using the VS Code
+   Explorer. **If reviewing a cloned copy:** request the required credentials from
+   me through an approved private course channel, or use your own service credentials.
+   The README does not grant access to my local files or service accounts.
+4. If I provide a `.env` file privately, save it in the project root. Otherwise,
+   create one from the template with the PowerShell command below, then replace
+   its placeholder values. Run this only if `.env` does not already exist:
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+5. Supply `APIFREAKS_API_KEY`, `SECRET_KEY`, `GOOGLE_CLIENT_ID`,
+   `GOOGLE_CLIENT_SECRET`, and the `MYSQL_*` settings listed in the template.
+   Download the matching Aiven CA certificate and save it as `certs/ca.pem`, or set
+   `MYSQL_SSL_CA` to its location. The certificate is also excluded from Git.
+6. Follow the installation instructions below to create a virtual environment and
+   install `requirements.txt`, then run:
+
+   ```powershell
+   python check_db.py
+   python -m flask --app app:create_app init-devices
+   python -m flask --app app:create_app init-threats
+   python app.py
+   ```
+
+7. Open `http://127.0.0.1:5000`. For Google sign-in, the OAuth client must allow
+   `http://127.0.0.1:5000/auth/google/callback`. If the Google app is in Testing,
+   ask me to add your Google account as a test user when using my OAuth client.
+   After signing in, open **My threats** to review CRUD operations and **My profile**
+   to save a public IP and check its status.
+
+Flask loads `.env` automatically at startup. Restart the server after changing it.
+Please keep credentials out of commits, screenshots, and public course submissions.
+Assignment 3 screenshots and requirement evidence are included near the end of this README.
+
 - **Application:** ThreatLense
 - **Student:** Nancy Perez
 - **Course:** IT401
