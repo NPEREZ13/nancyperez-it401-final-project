@@ -119,11 +119,41 @@ h3 { line-height: 1.3; }
 .brief-row p { margin-bottom: 0; color: var(--muted); font-size: .88rem; }
 .confidence { color: var(--green); font: .7rem ui-monospace, monospace; text-align: right; text-transform: uppercase; }
 
-.filter-panel { display: grid; grid-template-columns: minmax(240px, 1.6fr) 1fr 1fr auto auto; align-items: end; gap: .8rem; margin-top: 2rem; padding: 1.2rem; border: 1px solid var(--line); border-radius: 7px; background: rgba(9, 20, 18, .9); }
+.filter-panel { display: grid; grid-template-columns: minmax(200px, 1.5fr) repeat(3, minmax(0, 1fr)) auto auto; align-items: end; gap: .8rem; margin-top: 2rem; padding: 1.2rem; border: 1px solid var(--line); border-radius: 7px; background: rgba(9, 20, 18, .9); }
 .filter-field label { display: block; margin-bottom: .4rem; color: var(--muted); font: .67rem ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
-.filter-field input, .filter-field select { width: 100%; min-height: 42px; padding: .65rem .75rem; color: var(--ink); border: 1px solid var(--line); border-radius: 4px; outline: none; background: #081310; font: inherit; font-size: .85rem; }
+.filter-field input, .filter-field select, .filter-field textarea { width: 100%; min-height: 42px; padding: .65rem .75rem; color: var(--ink); border: 1px solid var(--line); border-radius: 4px; outline: none; background: #081310; font: inherit; font-size: .85rem; }
 .filter-field input::placeholder { color: #617772; }
-.filter-field input:focus, .filter-field select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(77, 245, 179, .09); }
+.filter-field input:focus, .filter-field select:focus, .filter-field textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(77, 245, 179, .09); }
+.threat-form { display: grid; gap: 1.25rem; max-width: 800px; margin-top: 2rem; }
+.threat-form textarea { resize: vertical; }
+.form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.form-actions button { cursor: pointer; }
+.explore-actions { margin-top: 1.5rem; }
+.explore-tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin: 2rem 0 1.5rem; border-bottom: 1px solid var(--line); }
+.explore-tabs a { padding: .8rem 1rem; color: var(--muted); text-decoration: none; border-bottom: 3px solid transparent; }
+.explore-tabs a.active { color: var(--green); border-bottom-color: var(--green); }
+.explore-tabs a:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.result-pagination { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 1.25rem; margin-top: 2rem; }
+.result-pagination span { color: var(--muted); }
+.result-pagination [aria-disabled="true"] { opacity: .6; }
+.browse-filters { grid-template-columns: 1fr 1fr auto auto; }
+.nav-links { flex-wrap: wrap; }
+.form-error { padding: 1rem; border: 1px solid var(--red); color: var(--red); }
+.flash-message { padding: 1rem; border: 1px solid var(--green); color: var(--green); }
+.nav-shell { flex-wrap: wrap; }
+.account-nav { justify-content: flex-end; }
+.account-nav form { margin: 0; }
+.account-nav span { color: var(--muted); font-size: .85rem; }
+.profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
+.provider-card { margin-top: 1rem; padding: 1.4rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.profile-form { display: grid; gap: 1rem; margin-block: 1rem; }
+.profile-form textarea { width: 100%; padding: .8rem; color: var(--ink); background: var(--surface); border: 1px solid var(--line); font: inherit; }
+.profile-grid details { margin-block: 1rem; }
+.profile-grid summary { cursor: pointer; color: var(--green); }
+.profile-grid code, .profile-grid p { overflow-wrap: anywhere; }
+.record-text { white-space: pre-wrap; }
+.alert-error { padding: 1rem; border: 1px solid var(--red); color: var(--red); }
+@media (max-width: 800px) { .profile-grid { grid-template-columns: 1fr; } }
 .filter-button { min-height: 42px; cursor: pointer; }
 .clear-filter { align-self: center; color: var(--green); font-size: .78rem; text-decoration: none; }
 .explore-summary { display: flex; justify-content: space-between; gap: 2rem; margin: 1.5rem 0; color: var(--muted); font: .75rem ui-monospace, monospace; text-transform: uppercase; }

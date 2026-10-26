@@ -1,0 +1,63 @@
+{% if active_tab == 'search' %}
+<section aria-labelledby="search-heading">
+    <h2 id="search-heading">Search my threats</h2>
+    {% if search_error %}<p class="form-error" role="alert">{{ search_error }}</p>{% endif %}
+    {% if not has_workspace %}
+    <p><a class="clear-filter" href="{{ url_for('auth.login') }}">Sign in with Google</a> to search your saved threats, or <a class="clear-filter" href="{{ url_for('add_threat') }}">add a threat</a> to start a private workspace.</p>
+    {% else %}
+    <p>Enter a keyword or phrase to search your saved records.</p>
+    {% endif %}
+{% endif %}
+
+<form class="filter-panel{% if active_tab == 'browse' %} browse-filters{% endif %}" method="get" action="{{ url_for('explore') }}" {% if active_tab == 'search' %}role="search" aria-label="Search saved threats"{% endif %}>
+    <input type="hidden" name="tab" value="{{ active_tab }}">
+    {% if showing_demo and has_workspace %}<input type="hidden" name="collection" value="demo">{% endif %}
+    {% if active_tab == 'search' %}
+    <div class="filter-field search-field">
+        <label for="q">Keyword or phrase</label>
+        <input
+            id="q"
+            name="q"
+            type="search"
+            value="{{ search_query }}"
+            placeholder="Search your saved threats..."
+            required
+        >
+    </div>
+    {% endif %}
+    <div class="filter-field">
+        <label for="severity">Severity</label>
+        <select id="severity" name="severity">
+            <option value="">All severities</option>
+            {% for severity in severities %}
+            <option value="{{ severity }}" {% if severity == selected_severity %}selected{% endif %}>{{ severity }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-field">
+        <label for="category">Category</label>
+        <select id="category" name="category">
+            <option value="">All categories</option>
+            {% for category in categories %}
+            <option value="{{ category }}" {% if category == selected_category %}selected{% endif %}>{{ category }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% if active_tab == 'search' %}
+    <div class="filter-field">
+        <label for="sort">Sort results</label>
+        <select id="sort" name="sort">
+            {% for value, label in sort_options.items() %}
+            <option value="{{ value }}" {% if selected_sort == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {% endif %}
+    <button class="button button-primary filter-button" type="submit">{{ 'Search threats' if active_tab == 'search' else 'Apply filters' }}</button>
+    {% if active_tab == 'search' %}
+    <a class="clear-filter" href="{{ url_for('explore', tab='search') }}">New search</a>
+    {% elif selected_severity or selected_category %}
+    <a class="clear-filter" href="{{ url_for('explore', collection='demo') if showing_demo and has_workspace else url_for('explore') }}">Clear</a>
+    {% endif %}
+</form>
+{% if active_tab == 'search' %}</section>{% endif %}

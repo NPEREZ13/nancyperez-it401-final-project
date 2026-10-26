@@ -1,0 +1,18 @@
+{% macro category_field(value, choice=none) %}
+{% set selected = choice if choice is not none else (value if value in category_options else ('other' if value else '')) %}
+<div class="filter-field" data-category-field>
+    <label for="category-choice">Category</label>
+    <select id="category-choice" name="category_choice" required>
+        <option value="">Choose a category</option>
+        {% for option in category_options %}
+        <option value="{{ option }}" {% if selected == option %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+        <option value="other" {% if selected == 'other' %}selected{% endif %}>Other — enter a category</option>
+    </select>
+    <div data-category-other {% if selected != 'other' %}hidden{% endif %}>
+        <label for="category">Custom category</label>
+        <input id="category" name="category" maxlength="80" {% if selected == 'other' %}required{% endif %} value="{{ value if selected == 'other' else '' }}" placeholder="Enter a category">
+    </div>
+    <noscript><style>[data-category-other][hidden] { display: block; }</style></noscript>
+</div>
+{% endmacro %}

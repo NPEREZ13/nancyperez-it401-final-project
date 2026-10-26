@@ -17,13 +17,30 @@
             <div class="nav-links">
                 <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active" aria-current="page"{% endif %}>Dashboard</a>
                 <a href="{{ url_for('explore') }}" {% if request.endpoint == 'explore' %}class="active" aria-current="page"{% endif %}>Explore</a>
+                <a href="{{ url_for('add_threat') }}" {% if request.endpoint == 'add_threat' %}class="active" aria-current="page"{% endif %}>Add Threat</a>
                 <a href="{{ url_for('menu') }}" {% if request.endpoint == 'menu' %}class="active" aria-current="page"{% endif %}>Threat Briefs</a>
                 <a href="{{ url_for('about') }}" {% if request.endpoint == 'about' %}class="active" aria-current="page"{% endif %}>About</a>
+            </div>
+            <div class="nav-links account-nav">
+                {% if session.get('user') %}
+                <a href="{{ url_for('profile.index') }}" {% if request.blueprint == 'profile' %}class="active"{% endif %}>My profile</a>
+                <a href="{{ url_for('threats.index') }}">My threats</a>
+                <span>{{ session['user']['name'] }}</span>
+                <form action="{{ url_for('auth.logout') }}" method="post">
+                    <input type="hidden" name="csrf_token" value="{{ session.get('logout_csrf', '') }}">
+                    <button class="button" type="submit">Sign out</button>
+                </form>
+                {% else %}
+                <a href="{{ url_for('auth.login') }}">Sign in with Google</a>
+                {% endif %}
             </div>
         </nav>
     </header>
 
     <main class="page-shell">
+        {% for category, message in get_flashed_messages(with_categories=true) %}
+        <p class="flash-message" role="status">{{ message }}</p>
+        {% endfor %}
         {% block content %}{% endblock %}
     </main>
 
@@ -33,5 +50,6 @@
             <p>Created by Nancy Perez &middot; IT401 Final Project</p>
         </div>
     </footer>
+<script src="{{ url_for('static', filename='mitigation.js') }}" defer></script>
 </body>
 </html>

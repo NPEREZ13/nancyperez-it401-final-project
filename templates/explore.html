@@ -7,72 +7,31 @@
     <p class="eyebrow">Threat data store</p>
     <h1>Explore intelligence</h1>
     <p>
-        Review the threat records currently tracked by ThreatLense. This page is
-        generated from the JSON dataset stored in the application's data directory.
+        {% if active_tab == 'search' %}
+        Search your saved threats by name, category, description, or recommended action.
+        {% elif authenticated %}
+        Review the threat intelligence saved to your account.
+        {% else %}
+        Explore the original demonstration records migrated into our database.
+        These examples are not live security advisories.
+        {% endif %}
     </p>
 </section>
 
-<form class="filter-panel" method="get" action="{{ url_for('explore') }}">
-    <div class="filter-field search-field">
-        <label for="q">Search intelligence</label>
-        <input
-            id="q"
-            name="q"
-            type="search"
-            value="{{ search_query }}"
-            placeholder="Name, target, keyword..."
-        >
-    </div>
-    <div class="filter-field">
-        <label for="severity">Severity</label>
-        <select id="severity" name="severity">
-            <option value="">All severities</option>
-            {% for severity in severities %}
-            <option value="{{ severity }}" {% if severity == selected_severity %}selected{% endif %}>{{ severity }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="filter-field">
-        <label for="category">Category</label>
-        <select id="category" name="category">
-            <option value="">All categories</option>
-            {% for category in categories %}
-            <option value="{{ category }}" {% if category == selected_category %}selected{% endif %}>{{ category }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <button class="button button-primary filter-button" type="submit">Apply filters</button>
-    {% if search_query or selected_severity or selected_category %}
-    <a class="clear-filter" href="{{ url_for('explore') }}">Clear</a>
+<div class="form-actions explore-actions">
+    <a class="button button-primary" href="{{ url_for('add_threat') }}">Add threat</a>
+    {% if has_workspace %}
+    {% if showing_demo %}<a class="clear-filter" href="{{ url_for('explore') }}">My saved threats</a>
+    {% else %}<a class="clear-filter" href="{{ url_for('explore', collection='demo') }}">View demo threats</a>{% endif %}
     {% endif %}
-</form>
+</div>
 
-<section class="explore-summary" aria-label="Dataset summary">
-    <p><strong>{{ threats | length }}</strong> of {{ total_threats }} tracked threats</p>
-    <p><span class="status-dot"></span> Local intelligence feed loaded</p>
-</section>
+<nav class="explore-tabs" aria-label="Explore sections">
+    <a href="{{ url_for('explore', collection='demo') if showing_demo and has_workspace else url_for('explore') }}" {% if active_tab == 'browse' %}class="active" aria-current="page"{% endif %}>Browse threats</a>
+    <a href="{{ url_for('explore', tab='search') }}" {% if active_tab == 'search' %}class="active" aria-current="page"{% endif %}>Search my threats</a>
+</nav>
 
-<section class="explore-grid" aria-label="Cybersecurity threats">
-    {% for threat in threats %}
-    <article class="explore-card">
-        <div class="explore-card-heading">
-            <span class="risk-tag {{ threat.severity | lower }}">{{ threat.severity }}</span>
-            <span class="threat-id">{{ threat.id }}</span>
-        </div>
-        <p class="threat-type">{{ threat.category }}</p>
-        <h2>{{ threat.name }}</h2>
-        <p>{{ threat.description }}</p>
-        <dl>
-            <div><dt>Primary target</dt><dd>{{ threat.target }}</dd></div>
-            <div><dt>Recommended action</dt><dd>{{ threat.mitigation }}</dd></div>
-        </dl>
-    </article>
-    {% else %}
-    <div class="empty-state">
-        <h2>No matching threats</h2>
-        <p>Try a broader search or clear your selected filters.</p>
-        <a href="{{ url_for('explore') }}">Clear all filters</a>
-    </div>
-    {% endfor %}
-</section>
+{% include 'search.html' %}
+
+{% include 'results.html' %}
 {% endblock %}

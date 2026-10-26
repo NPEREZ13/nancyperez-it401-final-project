@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from '_mitigation_field.html' import mitigation_field %}
+{% from '_threat_name_field.html' import threat_name_field %}
+{% from '_category_field.html' import category_field %}
+{% block title %}Add Threat{% endblock %}
+{% block content %}
+<section class="page-intro">
+    <p class="eyebrow">Your intelligence</p>
+    <h1>Add a threat</h1>
+    <p>Record a threat or incident that happened, describe its impact, and capture the recommended response.</p>
+    {% if account_owner %}
+    <p>This threat will be saved to your account.</p>
+    {% else %}
+    <p><a class="clear-filter" href="{{ url_for('auth.login') }}">Sign in with Google</a> to save threats to your account and access them across devices.</p>
+    <p>This threat will be saved to your private browser workspace. Use this browser to return to your saved threats; clearing its cookies removes access to the workspace.</p>
+    {% endif %}
+</section>
+
+<form class="threat-form" method="post" action="{{ url_for('add_threat') }}" data-threat-save>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    {% if error %}<p class="form-error" role="alert">{{ error }}</p>{% endif %}
+    {{ threat_name_field(values.name, name_choice) }}
+    <div class="filter-field">
+        <label for="severity">Severity</label>
+        <select id="severity" name="severity" required>
+            <option value="">Choose a severity</option>
+            {% for severity in ['Critical', 'High', 'Medium', 'Low', 'Info'] %}
+            <option value="{{ severity }}" {% if values.severity == severity %}selected{% endif %}>{{ severity }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    {{ category_field(values.category, category_choice) }}
+    <div class="filter-field">
+        <label for="description">What happened?</label>
+        <textarea id="description" name="description" rows="6" maxlength="16000" required placeholder="Describe what happened, when it occurred, and who or what was affected.">{{ values.description }}</textarea>
+    </div>
+    {{ mitigation_field(values.mitigation, mitigation_choice) }}
+    <div class="form-actions">
+        <button class="button button-primary" type="submit">Save threat</button>
+        <a class="clear-filter" href="{{ url_for('explore') }}">Cancel</a>
+    </div>
+</form>
+{% endblock %}

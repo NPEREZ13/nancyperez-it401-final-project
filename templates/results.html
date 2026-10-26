@@ -1,0 +1,44 @@
+{% if active_tab != 'search' or has_search_query %}
+<section class="explore-summary" aria-label="Dataset summary">
+    <p>{% if pagination.total %}Showing <strong>{{ pagination.first }}–{{ pagination.last }}</strong> of {{ pagination.total }} results{% else %}0 results{% endif %} · {{ total_threats }} tracked threats</p>
+    <p>{% if active_tab == 'search' %}Results for “{{ search_query }}”{% elif authenticated %}<span class="status-dot"></span> Your saved threats{% else %}Migrated demo intelligence. Add a threat to start your private workspace.{% endif %}</p>
+</section>
+{% endif %}
+
+<section class="explore-grid" aria-label="Cybersecurity threats">
+    {% for threat in threats %}
+    <article class="explore-card">
+        <div class="explore-card-heading">
+            <span class="risk-tag {{ threat.severity | lower }}">{{ threat.severity }}</span>
+            <span class="threat-id">{{ threat.id }}</span>
+        </div>
+        <p class="threat-type">{{ threat.category }}</p>
+        <h2>{{ threat.name }}</h2>
+        <p>{{ threat.description }}</p>
+        <dl>
+            <div><dt>Recommended action</dt><dd>{{ threat.mitigation }}</dd></div>
+        </dl>
+    </article>
+    {% else %}
+    <div class="empty-state">
+        {% if active_tab == 'search' and not has_search_query %}
+        <h2>Start a search</h2>
+        <p>Enter a keyword or phrase above, then select Search threats.</p>
+        {% elif active_tab == 'search' and not has_workspace %}
+        <h2>Your saved threats are private</h2>
+        <p>Sign in or create a private workspace to search your own threats.</p>
+        {% else %}
+        <h2>No matching threats</h2>
+        <p>Try a broader search or clear your selected filters.</p>
+        <a href="{{ url_for('explore', tab='search') if active_tab == 'search' else (url_for('explore', collection='demo') if showing_demo and has_workspace else url_for('explore')) }}">{{ 'New search' if active_tab == 'search' else 'Clear all filters' }}</a>
+        {% endif %}
+    </div>
+    {% endfor %}
+</section>
+{% if pagination.total %}
+<nav class="result-pagination" aria-label="Results pages">
+    {% if previous_url %}<a class="button" href="{{ previous_url }}" rel="prev">Previous</a>{% else %}<span aria-disabled="true">Previous</span>{% endif %}
+    <span aria-current="page">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+    {% if next_url %}<a class="button" href="{{ next_url }}" rel="next">Next</a>{% else %}<span aria-disabled="true">Next</span>{% endif %}
+</nav>
+{% endif %}
