@@ -1,0 +1,18 @@
+{% macro threat_name_field(value, choice=none) %}
+{% set selected = choice if choice is not none else (value if value in threat_name_options else ('other' if value else '')) %}
+<div class="filter-field" data-threat-name-field>
+    <label for="name-choice">Threat name</label>
+    <select id="name-choice" name="name_choice" required>
+        <option value="">Choose a threat</option>
+        {% for option in threat_name_options %}
+        <option value="{{ option }}" {% if selected == option %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+        <option value="other" {% if selected == 'other' %}selected{% endif %}>Other — enter a threat name</option>
+    </select>
+    <div data-threat-name-other {% if selected != 'other' %}hidden{% endif %}>
+        <label for="name">Custom threat or incident name</label>
+        <input id="name" name="name" maxlength="120" {% if selected == 'other' %}required{% endif %} value="{{ value if selected == 'other' else '' }}" placeholder="Enter the threat or incident name">
+    </div>
+    <noscript><style>[data-threat-name-other][hidden] { display: block; }</style></noscript>
+</div>
+{% endmacro %}

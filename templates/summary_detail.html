@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Generated Summary{% endblock %}
+
+{% block content %}
+<section class="page-intro summary-detail-intro">
+    <p class="eyebrow">Generated analysis</p>
+    <span class="generated-badge">Generated summary &mdash; not an original threat record</span>
+    <h1>Threat summary</h1>
+    <p>{{ stored.user_request }}</p>
+</section>
+
+<div class="form-actions explore-actions">
+    <a class="button button-primary" href="{{ results_url }}">Back to original results</a>
+    <a class="clear-filter" href="{{ url_for('summaries.history') }}">Saved summary history</a>
+</div>
+
+<section class="summary-metadata" aria-label="Generation information">
+    <div><span>Generated</span><strong>{{ stored.generated_at_utc.strftime('%Y-%m-%d %H:%M:%S') }} UTC</strong></div>
+    <div><span>Model</span><strong>{{ stored.model_identifier }}</strong></div>
+    <div><span>Prompt version</span><strong>{{ stored.prompt_version }}</strong></div>
+    <div><span>Source coverage</span><strong>{{ context.retrieval.selected_record_count }} of {{ context.retrieval.total_matching_records }} matches</strong></div>
+</section>
+
+<section class="provider-card context-coverage">
+    <h2>Context used</h2>
+    <p>
+        {{ context.retrieval.selected_record_count }} record(s) were selected from
+        {{ context.retrieval.page_result_count }} results on page {{ context.retrieval.page }}.
+        The serialized record context used {{ context.retrieval.context_size_bytes }} of
+        {{ context.retrieval.context_size_limit_bytes }} allowed UTF-8 bytes.
+    </p>
+    {% if context.retrieval.covers_subset %}
+    <p class="coverage-notice">This generated summary covers only a subset of the matching results.</p>
+    {% endif %}
+</section>
+
+<article class="generated-output" aria-labelledby="generated-summary-heading">
+    <p class="eyebrow">Validated generated content</p>
+    <h2 id="generated-summary-heading">Summary</h2>
+    <p class="record-text">{{ output.summary }}</p>
+
+    <h2>Key findings</h2>
+    <ol class="finding-list">
+        {% for item in output.key_findings %}
+        <li>
+            <p class="record-text">{{ item.finding }}</p>
+            <p class="source-links">Supporting records:
+                {% for record_id in item.supporting_record_ids %}
+                <a href="{{ url_for('explore', tab='search', q=record_id) }}">#{{ record_id }}</a>{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </p>
+        </li>
+        {% else %}
+        <li>No validated findings were returned.</li>
+        {% endfor %}
+    </ol>
+
+    <h2>Limitations</h2>
+    <ul class="limitation-list">
+        {% for limitation in output.limitations %}<li>{{ limitation }}</li>{% else %}<li>No additional limitations were returned.</li>{% endfor %}
+    </ul>
+</article>
+
+<section class="source-context" aria-labelledby="source-context-heading">
+    <p class="eyebrow">Original evidence snapshot</p>
+    <h2 id="source-context-heading">Source context</h2>
+    <p>These are the exact post-redaction record fields supplied to the summary model.</p>
+    <div class="source-context-grid">
+        {% for record in context.records %}
+        <article class="source-record">
+            <div class="summary-card-heading">
+                <span class="risk-tag {{ (record.severity or 'info') | lower }}">{{ record.severity or 'Not available' }}</span>
+                <a class="threat-id" href="{{ url_for('explore', tab='search', q=record.record_id) }}">Source #{{ record.record_id }}</a>
+            </div>
+            <h3>{{ record.name or 'Name not available' }}</h3>
+            <p class="record-text">{{ record.description or 'Description not available.' }}</p>
+            <dl>
+                <div><dt>Category</dt><dd>{{ record.category or 'Not available' }}</dd></div>
+                <div><dt>Target</dt><dd>{{ record.target or 'Not available' }}</dd></div>
+                <div><dt>Stored mitigation</dt><dd>{{ record.mitigation or 'Not available' }}</dd></div>
+                <div><dt>Source URL</dt><dd>{% if record.source_url %}<a href="{{ record.source_url }}" rel="noopener noreferrer">{{ record.source_url }}</a>{% else %}Not available{% endif %}</dd></div>
+                <div><dt>Source dates</dt><dd>{{ record.source_published_at or 'Not available' }} / {{ record.source_updated_at or 'Not available' }}</dd></div>
+            </dl>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+
+<details class="json-view">
+    <summary>View validated structured JSON</summary>
+    <p>This escaped JSON is the validated output saved for this generation.</p>
+    <pre>{{ output_json }}</pre>
+</details>
+{% endblock %}

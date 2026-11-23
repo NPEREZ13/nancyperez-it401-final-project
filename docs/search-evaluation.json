@@ -1,0 +1,130 @@
+{
+  "fixture": "Isolated SQLite; 4 migrated demo threats + 13 synthetic records; simulated account session",
+  "record_count": 17,
+  "evaluation_type": "Offline documentation evaluation, not production search telemetry",
+  "model_tables": [
+    "profile_devices",
+    "user_threats"
+  ],
+  "search_telemetry_implemented": false,
+  "queries": [
+    {
+      "query": "  PHISHING  ",
+      "expected": [
+        "Phishing",
+        "Payroll Phishing Exercise",
+        "Cloud Credential Phishing",
+        "Endpoint Review 01",
+        "Endpoint Review 02",
+        "Endpoint Review 03",
+        "Endpoint Review 04",
+        "Endpoint Review 05",
+        "Endpoint Review 06",
+        "Endpoint Review 07",
+        "Endpoint Review 08",
+        "Endpoint Review 09",
+        "Endpoint Review 10",
+        "Endpoint Review 11"
+      ],
+      "actual": [
+        "Phishing",
+        "Payroll Phishing Exercise",
+        "Cloud Credential Phishing",
+        "Endpoint Review 01",
+        "Endpoint Review 02",
+        "Endpoint Review 03",
+        "Endpoint Review 04",
+        "Endpoint Review 05",
+        "Endpoint Review 06",
+        "Endpoint Review 07",
+        "Endpoint Review 08",
+        "Endpoint Review 09",
+        "Endpoint Review 10",
+        "Endpoint Review 11"
+      ],
+      "result_count": 14,
+      "precision": 1.0,
+      "recall": 1.0,
+      "scores": [
+        110,
+        60,
+        52,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5,
+        5
+      ]
+    },
+    {
+      "query": "cloud",
+      "severity": "High",
+      "category": "Credential Theft",
+      "expected": [
+        "Cloud Credential Phishing"
+      ],
+      "actual": [
+        "Cloud Credential Phishing"
+      ],
+      "result_count": 1,
+      "precision": 1.0,
+      "recall": 1.0,
+      "scores": [
+        55
+      ]
+    },
+    {
+      "query": "MFA",
+      "expected": [
+        "BlackCat Ransomware",
+        "Cloud Credential Phishing"
+      ],
+      "actual": [
+        "Cloud Credential Phishing"
+      ],
+      "result_count": 1,
+      "precision": 1.0,
+      "recall": 0.5,
+      "scores": [
+        2
+      ]
+    },
+    {
+      "query": "BlackCat Ransomware",
+      "expected": [
+        "BlackCat Ransomware"
+      ],
+      "actual": [
+        "BlackCat Ransomware"
+      ],
+      "result_count": 1,
+      "precision": 1.0,
+      "recall": 1.0,
+      "scores": [
+        100
+      ]
+    },
+    {
+      "query": "quantum banana",
+      "expected": [],
+      "actual": [],
+      "result_count": 0,
+      "precision": null,
+      "recall": null,
+      "scores": []
+    }
+  ],
+  "pagination": {
+    "query": "phishing",
+    "page_sizes": [
+      10,
+      4
+    ]
+  }
+}

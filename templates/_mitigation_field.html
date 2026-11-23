@@ -1,0 +1,19 @@
+{% macro mitigation_field(value, choice=none) %}
+{% set selected = choice if choice is not none else (value if value in mitigation_options else ('other' if value else '')) %}
+<div class="filter-field" data-mitigation-field>
+    <label for="mitigation-choice">Mitigation / response</label>
+    <select id="mitigation-choice" name="mitigation_choice" required data-mitigation-choice aria-describedby="mitigation-help">
+        <option value="">Choose an action</option>
+        {% for option in mitigation_options %}
+        <option value="{{ option }}" {% if selected == option %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+        <option value="other" {% if selected == 'other' %}selected{% endif %}>Other — describe your own response</option>
+    </select>
+    <p id="mitigation-help" class="form-help">Choose the action taken or recommended to reduce this threat.</p>
+    <div data-mitigation-other {% if selected != 'other' %}hidden{% endif %}>
+        <label for="mitigation">Describe your response</label>
+        <textarea id="mitigation" name="mitigation" rows="4" maxlength="16000" {% if selected == 'other' %}required{% endif %} placeholder="Enter the steps taken or recommended to reduce the risk.">{{ value if selected == 'other' else '' }}</textarea>
+    </div>
+    <noscript><style>[data-mitigation-other][hidden] { display: block; }</style></noscript>
+</div>
+{% endmacro %}
