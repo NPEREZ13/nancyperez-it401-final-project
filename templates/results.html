@@ -5,6 +5,44 @@
 </section>
 {% endif %}
 
+{% if active_tab == 'search' and has_search_query and has_workspace %}
+<section class="summary-action" aria-labelledby="summary-action-heading">
+    <div>
+        <p class="eyebrow">Generated analysis</p>
+        <h2 id="summary-action-heading">Summarize these results</h2>
+        {% if pagination.total %}
+        <p>
+            ThreatLense will rerun this exact query, filters, sort order, and page on
+            the server. It will use up to five records from the {{ pagination.items | length }}
+            results on this page, with a 12,000-byte context limit. Any subset or
+            truncation will be reported in the saved summary.
+        </p>
+        {% else %}
+        <p>No matching records are available. Broaden the search before generating a summary.</p>
+        {% endif %}
+    </div>
+    <div class="summary-action-controls">
+        {% if pagination.total %}
+        <form class="summary-form" method="post" action="{{ url_for('summaries.generate') }}">
+            <input type="hidden" name="csrf_token" value="{{ session.get('summary_csrf', '') }}">
+            <input type="hidden" name="submission_token" value="{{ session.get('summary_submission_token', '') }}">
+            <input type="hidden" name="q" value="{{ search_query }}">
+            <input type="hidden" name="severity" value="{{ selected_severity }}">
+            <input type="hidden" name="category" value="{{ selected_category }}">
+            <input type="hidden" name="sort" value="{{ selected_sort }}">
+            <input type="hidden" name="page" value="{{ pagination.page }}">
+            <button class="button button-primary summary-submit" type="submit">
+                <span class="submit-label">Summarize results</span>
+                <span class="loading-label" hidden>Generating summary&hellip;</span>
+            </button>
+            <p class="loading-status" role="status" aria-live="polite"></p>
+        </form>
+        {% endif %}
+        <a class="clear-filter" href="{{ url_for('summaries.history') }}">View saved summaries</a>
+    </div>
+</section>
+{% endif %}
+
 <section class="explore-grid" aria-label="Cybersecurity threats">
     {% for threat in threats %}
     <article class="explore-card">

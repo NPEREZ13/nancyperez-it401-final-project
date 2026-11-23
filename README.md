@@ -5,7 +5,7 @@
 - **Application name:** ThreatLense
 - **Student:** Nancy Perez
 - **Course:** IT401
-- **Assignment:** Semester Project - Assignment 4 (A4): Search and Retrieval
+- **Assignment:** Semester Project - Assignment 5 (A5): Threat Summarization
 
 ## Project Overview
 
@@ -13,7 +13,7 @@ ThreatLense is a Flask cybersecurity intelligence application for recording inci
 
 Google accounts own their saved threats and devices in Aiven MySQL. Visitors can browse the original demonstration dataset; users can also start a private browser workspace before signing in. Search improves the application by finding relevant saved incidents and response guidance without manually reviewing every record. Filters, relevance ranking, alphabetical ordering, and pagination make results easier to review.
 
-**Current implementation status:** keyword retrieval is implemented. Search telemetry and the A3 web scraper are **not implemented in this A4 working tree**. They are documented as gaps and future work below, rather than presented as completed functionality. The dashboard's counters and live-monitor graphics are demonstration content, not measured live telemetry. Example threats are not live security advisories.
+**Current implementation status:** search, ranked retrieval, threat/device CRUD, OpenAI-backed structured threat summarization, validation, and stored-summary history/detail views are implemented. Search telemetry and the A3 web scraper are not implemented in this working tree. The dashboard's counters and live-monitor graphics are demonstration content, not measured live telemetry. Example threats are not live security advisories.
 
 ## Search and Retrieval Features
 
@@ -80,7 +80,7 @@ The service reads candidates in keyset batches of at most 100 rows, retaining co
 
 ## Search Telemetry
 
-**Current behavior:** the application does not persist search activity, durations, result clicks, zero-result searches, or per-user history. The model metadata contains only `user_threats` and `profile_devices`. The dashboard's "Global telemetry" label is a visual demonstration and does not indicate search instrumentation.
+**Current behavior:** the application does not persist search activity, durations, result clicks, zero-result searches, or per-user history. The `stored_intelligence` table described below stores completed summary artifacts, not search telemetry. The dashboard's "Global telemetry" label is a visual demonstration and does not indicate search instrumentation.
 
 GET queries can appear in browser history and development HTTP access logs because they are part of the URL. These are not a structured application search-history system. Do not enter credentials or other secrets into a search query.
 
@@ -90,12 +90,13 @@ A future telemetry implementation could record a trusted owner subject, submitte
 
 ## Database Schema
 
-Flask-SQLAlchemy maps the two existing Aiven tables. Application startup does not create, drop, or alter them. [docs/schema.sql](docs/schema.sql) is a reference/bootstrap schema for a **new development database**, using `CREATE TABLE IF NOT EXISTS`; it does not migrate an existing mismatched schema.
+Flask-SQLAlchemy maps the existing Aiven tables plus the additive A5 `stored_intelligence` table. Application startup does not create, drop, or alter them. [docs/schema.sql](docs/schema.sql) is a reference/bootstrap schema for a **new development database**, using `CREATE TABLE IF NOT EXISTS`; it does not migrate an existing mismatched schema.
 
 | Table / model | Purpose | Primary key | Important attributes | Relationships |
 | --- | --- | --- | --- | --- |
 | `user_threats` / `UserThreat` | Account/workspace-owned saved incidents | `id`, BIGINT UNSIGNED AUTO_INCREMENT | `owner_sub` ASCII VARCHAR(255); `name` VARCHAR(120); `severity` VARCHAR(10); `category` VARCHAR(80); `description` TEXT; `mitigation` TEXT | Logical ownership by Google subject or browser-workspace key; index `idx_threats_owner`. |
 | `profile_devices` / `ProfileDevice` | Saved devices and latest IP reputation check | `id`, BIGINT UNSIGNED AUTO_INCREMENT | `owner_sub` ASCII VARCHAR(255); `name` VARCHAR(80); `ip_address` VARCHAR(45); nullable `result_json` JSON and `checked_at` DATETIME; server-generated `created_at` DATETIME | Same logical ownership; index `idx_devices_owner`. |
+| `stored_intelligence` / `StoredIntelligence` | Auditable, validated threat-summary generations | `id`, BIGINT UNSIGNED AUTO_INCREMENT | Owner request, validated output JSON, prompt version, actual model identifier, UTC generation time, source ID JSON, and exact context snapshot JSON | Same logical ownership; composite index `idx_intelligence_owner_generated`. Source IDs refer logically to supplied `user_threats` rows while the snapshot preserves generation evidence if a source later changes. |
 
 Ownership columns use case-sensitive `ascii_bin`. There is no persisted User table or foreign key between these tables; the owner subject is the application-level relationship. API datetimes use ISO strings. Checked timestamps with offsets are converted to UTC before storage; naive values are treated as UTC.
 
@@ -107,16 +108,141 @@ No new search-history or telemetry table exists, and there is no telemetry migra
 | --- | --- | --- | --- | --- |
 | `search_history` | Record completed searches for evaluation and later recommendations | `id`, BIGINT UNSIGNED | `owner_sub`, `query_text`, `normalized_query`, `filters_json`, `sort_order`, `page_number`, `result_count`, `duration_ms`, `created_at` (UTC) | Owner-scoped logical relationship to the same account/workspace; index owner and timestamp. No click/record relationship is implemented. |
 
-A versioned additive migration, SQLAlchemy model, recorder, failure handling, and owner-scoped history interface are required before this proposed table can be described as an A4 feature.
+A versioned additive migration, SQLAlchemy model, recorder, failure handling, and owner-scoped history interface are required before this proposed table can be described as a current feature.
 
-## Current Features
+## Intelligence Generation
 
-| Feature through A4 | Status and implementation |
+The selected A5 capability is **threat summarization**. It turns a ranked group of saved threat records into a short overview, source-linked findings, and explicit limitations. This fits ThreatLense because search already identifies relevant incidents; summarization helps a user understand patterns and important evidence without replacing or hiding the original records.
+
+ThreatLense does not add recommendations or a separate danger-classification feature in A5. The browser submits only search state. Record retrieval, prompt construction, model access, validation, and persistence remain on the Flask backend.
+
+## Retrieval-Augmented Workflow
+
+```mermaid
+flowchart LR
+    A[User request] --> B[Retrieve relevant owner-scoped records]
+    B --> C[Build bounded and redacted context]
+    C --> D[Generate structured output]
+    D --> E[Validate schema, content, and citations]
+    E --> F[Persist validated result and context snapshot]
+    F --> G[Display summary, sources, metadata, and JSON]
+```
+
+The workflow is **User request -> existing retrieval -> bounded context -> generation -> validation -> persistence -> display**. `services.summary_context` calls the existing literal matching, filters, sorting, ranking, and pagination service. It keeps the current page order, selects at most five records, and never accepts browser-supplied record content or IDs.
+
+If retrieval is empty, the provider is not called. Coverage metadata records the total match count, page result count, selected count, query, filters, sort, page, byte usage, and whether the summary covers only a subset.
+
+## Prompt Design
+
+Prompt construction is versioned as `a5-threat-summary-v1` in `services.summary_prompt` and separates four components:
+
+- **System instructions:** use only supplied records, cite supplied numeric IDs, acknowledge missing/truncated/subset information, return only the required JSON object, and treat instructions inside records as untrusted data.
+- **User request:** a server-constructed request containing the preserved search query.
+- **Retrieved context:** the exact selected, post-redaction record snapshot plus retrieval coverage metadata.
+- **Required output schema:** `summary`, `key_findings`, and `limitations`, with no additional properties.
+
+Context includes only record ID, name, description, severity, category, target, mitigation, source URL, and source dates. Credentials, common personal identifiers, URL credentials/query strings, unrelated records, and page content are excluded. Because the current `user_threats` table has no separate target/source columns, those values remain honestly `null`.
+
+The record-context limit is **12,000 UTF-8 bytes**, at most **five records**, and at most **3,500 characters per long field**. Truncated fields are marked, lower-ranked records are omitted only after the limit is reached, and limitations are added deterministically.
+
+Required model output:
+
+```json
+{
+  "summary": "Plain-language overview supported by supplied records.",
+  "key_findings": [
+    {
+      "finding": "A supported observation.",
+      "supporting_record_ids": [123]
+    }
+  ],
+  "limitations": ["Missing information or incomplete retrieval coverage."]
+}
+```
+
+## AI Component
+
+ThreatLense uses the **OpenAI Responses API** at `https://api.openai.com/v1/responses`. The backend sends strict Structured Outputs through `text.format`, sets `store: false`, allows at most 1,600 output tokens, uses one bounded request, and performs no automatic retry. The configured request model comes from `OPENAI_MODEL`; the actual model identifier returned by the provider is saved with the generation.
+
+Required configuration uses placeholders only:
+
+```dotenv
+OPENAI_API_KEY=replace-with-your-server-side-api-key
+OPENAI_MODEL=gpt-4o-mini
+OPENAI_TIMEOUT_SECONDS=20
+```
+
+`OPENAI_API_KEY` and `OPENAI_MODEL` are required for generation. Timeout is optional, defaults to 20 seconds, and must be between 1 and 60 seconds. Secrets are loaded from ignored `.env` data and sent only in the backend Authorization header. They are never rendered in HTML, placed in request URLs, or submitted by the browser.
+
+The provider integration uses the existing `requests` dependency; no browser SDK or additional OpenAI package is required. Install all dependencies with `python -m pip install -r requirements.txt`, apply the A5 migration, configure `.env`, and restart Flask.
+
+OpenAI Structured Outputs constrain completed, non-refusal output to a schema, but applications must still handle refusals, incomplete responses, API errors, and business validation. See the [Structured Outputs guide](https://developers.openai.com/api/docs/guides/structured-outputs) and [Responses API reference](https://developers.openai.com/api/reference/resources/responses/methods/create).
+
+## Validation and Reliability
+
+`services.summary_validation` validates model output before it can be displayed or stored:
+
+- A valid JSON object with exactly `summary`, `key_findings`, and `limitations`.
+- Nonempty summary and finding text with bounded lengths.
+- A nonempty findings list with at most 20 findings and at most five unique integer citations per finding.
+- A limitations list with bounded item count and text length.
+- Every cited ID must exist in the exact supplied context.
+- Missing fields, extra fields, wrong types, empty content, malformed JSON, and unexpected formats are rejected.
+
+Reliability handling covers missing API configuration, rate limiting, timeout, refusal, incomplete or malformed responses, provider failures, empty retrieval, database read/write errors, and transaction rollback. There is no fabricated or hardcoded AI fallback. Invalid output is never persisted as successful. If generation validates but saving fails, the UI explicitly says that a valid summary was generated but no stored result exists.
+
+Schema validation and citation membership do **not** prove factual correctness. Source-grounded prompts, mocked grounding fixtures, and the [manual grounding checklist](docs/a5-grounding-checklist.md) reduce risk, but ThreatLense does not claim hallucinations are completely prevented.
+
+## Generated Intelligence
+
+> **Illustrative mocked example — not a verified live OpenAI output.** The values below demonstrate the validated structure used in automated tests.
+
+```json
+{
+  "summary": "The supplied records describe phishing activity affecting cloud accounts.",
+  "key_findings": [
+    {
+      "finding": "A saved record describes a login lure targeting cloud accounts.",
+      "supporting_record_ids": [7]
+    }
+  ],
+  "limitations": [
+    "Record 7 does not provide a source URL or source dates."
+  ]
+}
+```
+
+Search results list individual records. Generated intelligence adds value by synthesizing patterns across up to five ranked records, grouping supported observations into findings, linking each finding back to source IDs, and presenting coverage/missing-data limits. It remains visually labeled as generated analysis and never replaces the source cards or immutable context snapshot.
+
+## Database Updates
+
+A5 adds `StoredIntelligence` mapped to `stored_intelligence`. Each owner-scoped row stores:
+
+- Primary key and trusted owner subject.
+- Original user request and validated generated JSON.
+- Prompt version and actual provider-returned model identifier.
+- UTC generation timestamp.
+- Source-record ID list.
+- Exact bounded, post-redaction context snapshot supplied to the model.
+
+The snapshot preserves traceability if a source record is later edited or deleted. Reviewers can compare each stored finding with the exact evidence used at generation time rather than relying on the current mutable row.
+
+For an existing MySQL database, apply [the additive migration](migrations/20261122_01_add_stored_intelligence.sql) once after reviewing the target database:
+
+```powershell
+mysql --host=$env:MYSQL_HOST --port=$env:MYSQL_PORT --user=$env:MYSQL_USER --password --ssl-ca=$env:MYSQL_SSL_CA --ssl-mode=VERIFY_IDENTITY --database=$env:MYSQL_DATABASE --execute="source migrations/20261122_01_add_stored_intelligence.sql"
+```
+
+The migration creates only the missing summary table; it does not drop, reset, or rewrite existing threat/device data. Flask does not run DDL automatically.
+
+## Current Features Through A5
+
+| Feature through A5 | Status and implementation |
 | --- | --- |
 | Homepage | Responsive dashboard with demonstration metrics and threat cards; shared navigation/footer. |
 | Google profile | Google OpenID Connect sign-in, verified-email check, My Profile, and CSRF-protected sign-out. |
 | API integration | API Freaks public-IP reputation lookup from a saved profile device; saved findings and check timestamp. Uses a 10-second timeout and safe provider errors. |
-| Web scraping | Not present in this A4 working tree. A3 contains a breach-scraper implementation; restoration/integration remains outstanding. JSON import is not web scraping. |
+| Web scraping | Not present in the current working tree. A3 contains a breach-scraper implementation; restoration/integration remains outstanding. JSON import is not web scraping. |
 | MySQL persistence | Flask-SQLAlchemy/PyMySQL maps existing Aiven tables with CA and hostname verification. |
 | CRUD operations | Account threat create/edit/delete, device CRUD, and owner-scoped JSON APIs. |
 | Threat entry | Name, category, and mitigation choices with Other fields; severity and incident description. |
@@ -126,6 +252,7 @@ A versioned additive migration, SQLAlchemy model, recorder, failure handling, an
 | Sorting and ranking | Weighted relevance or alphabetical ordering, deterministic ties. |
 | Pagination | 10 records/page, ranges, Previous/Next navigation, preserved search state. |
 | Search telemetry | Not implemented; proposed schema and intended uses documented separately. |
+| Threat summarization | POST action on private Search results; ranked five-record/12,000-byte context, OpenAI Responses API Structured Outputs, versioned injection-resistant prompt, strict output/citation validation, saved history/detail views, escaped JSON, and auditable storage. |
 | Data validation | Required fields, type/length checks, allowed severities, IPv4/IPv6 validation, JSON/date validation, CSRF and owner scoping. |
 | Other pages | Threat Briefs and About; public demo collection imported from the original JSON. |
 
@@ -146,26 +273,32 @@ nancyperez-it401-final-project/
 |-- requirements.txt
 |-- .env.example                   # Names/placeholders only; actual .env is ignored
 |-- models/
-|   `-- __init__.py                 # db, UserThreat, ProfileDevice
+|   `-- __init__.py                 # db and persisted threat/device/summary models
 |-- routes/
 |   |-- main.py                    # General pages and Add Threat form
 |   |-- search.py                  # Explore GET requests, page URLs, rendering
 |   |-- auth.py                    # Google sign-in/callback/logout
 |   |-- profile.py                 # Profile/device forms and workspace transfer
 |   |-- threats.py                 # Google-account threat management
-|   `-- records.py                 # JSON threat/device CRUD API
+|   |-- records.py                 # JSON threat/device CRUD API
+|   `-- summaries.py               # POST generation and owner-scoped history/detail
 |-- services/
 |   |-- search_service.py          # Processing, retrieval, filters, ranking, pagination
 |   |-- records.py                 # Trusted ownership and input validation
 |   |-- threat_storage.py          # Duplicate-safe threat creation
 |   |-- devices.py                 # Device persistence and saved checks
 |   |-- ip_threat.py               # API Freaks acquisition/response validation
+|   |-- summary_context.py          # Ranked, bounded, redacted model context
+|   |-- summary_prompt.py           # Versioned instructions and output schema
+|   |-- summary_validation.py       # Types, lengths, fields, and citation validation
+|   |-- summary_generation.py       # Retrieval-to-persistence orchestration
+|   |-- summary_storage.py          # Validated output and audit persistence
 |   |-- migration.py               # Explicit, duplicate-safe legacy JSON import
 |   |-- categories.py              # Category form choices
 |   |-- threat_names.py            # Threat-name form choices
 |   |-- mitigation.py              # Mitigation form choices
 |   |-- api_service.py             # General HTTP wrapper
-|   `-- ai_service.py              # Unimplemented AI placeholder
+|   `-- ai_service.py              # OpenAI Responses API structured-output client
 |-- templates/
 |   |-- base.html                  # Navigation, Google account links, shared layout
 |   |-- explore.html               # Browse/Search page shell and tabs
@@ -175,17 +308,23 @@ nancyperez-it401-final-project/
 |   |-- threat_form.html           # Account create/edit form
 |   |-- threat_records.html        # Account threat list
 |   |-- profile.html               # Saved devices and IP checks
+|   |-- summary_history.html       # Owner-scoped saved generations
+|   |-- summary_detail.html        # Output, citations, context, and escaped JSON
 |   |-- _category_field.html       # Shared category selector
 |   |-- _threat_name_field.html    # Shared name selector
 |   |-- _mitigation_field.html     # Shared response selector
 |   `-- index.html, menu.html, about.html
 |-- static/
 |   |-- style.css                  # Responsive interface
-|   `-- mitigation.js              # Other fields and duplicate-submit UI protection
+|   |-- mitigation.js              # Other fields and threat-save UI protection
+|   `-- summary.js                 # Loading state and duplicate-submit UI guard
 |-- data/threats.json               # Original demo data; retained unchanged
+|-- migrations/
+|   `-- 20261122_01_add_stored_intelligence.sql  # Additive A5 table migration
 |-- certs/ca.pem                    # Supply your Aiven CA certificate locally
 |-- docs/
 |   |-- schema.sql                 # Existing-table reference/bootstrap DDL
+|   |-- a5-grounding-checklist.md  # Manual claim/citation review procedure
 |   |-- evaluate_search.py         # Isolated evaluation and screenshot utility
 |   |-- search-evaluation.json     # Five measured query outcomes; not telemetry
 |   `-- screenshots/               # Current A4 evidence and historical images
@@ -198,15 +337,12 @@ The route layer does not implement the ranking algorithm or read SQL results its
 
 ## Installation Instructions
 
-### 1. Clone and select the A4 branch
+### 1. Clone the repository
 
 ```powershell
 git clone https://github.com/NPEREZ13/nancyperez-it401-final-project.git
 cd nancyperez-it401-final-project
-git switch nancyperez-it401-a4
 ```
-
-The local A4 changes must be committed and pushed before another clone contains them.
 
 ### 2. Create and activate a virtual environment
 
@@ -239,7 +375,13 @@ For Google sign-in, the OAuth web client must allow `http://127.0.0.1:5000/auth/
 
 ### 5. Apply database setup or migrations as appropriate
 
-**Existing Aiven database:** both tables already exist. No new DDL migration is shipped or required for these search changes. Do not drop/recreate those tables or run `db.create_all()`/`db.drop_all()` against them. There is no `flask db upgrade` command because Flask-Migrate is not installed.
+**Existing Aiven database:** preserve the existing tables and apply the additive A5 migration once. Do not drop/recreate tables or run `db.create_all()`/`db.drop_all()` against Aiven. Flask-Migrate is not installed, so there is no `flask db upgrade` command. With the MySQL client available and the intended environment variables loaded, run:
+
+```powershell
+mysql --host=$env:MYSQL_HOST --port=$env:MYSQL_PORT --user=$env:MYSQL_USER --password --ssl-ca=$env:MYSQL_SSL_CA --ssl-mode=VERIFY_IDENTITY --database=$env:MYSQL_DATABASE --execute="source migrations/20261122_01_add_stored_intelligence.sql"
+```
+
+The client prompts for the password so it is not placed in shell history. The migration uses only `CREATE TABLE IF NOT EXISTS`; it does not modify or discard `user_threats` or `profile_devices`. Review the target database and migration file before applying production DDL.
 
 **New, empty development database:** connect with a MySQL client using verified TLS, select the intended database, and apply [docs/schema.sql](docs/schema.sql). The script creates only missing tables and does not repair mismatched existing definitions. Compare an existing schema before any separately planned migration. The proposed telemetry table is not included or installed.
 
@@ -267,7 +409,7 @@ python -m pytest -q
 python docs/evaluate_search.py
 ```
 
-The local suite uses isolated in-memory SQLite; MySQL tests are skipped unless explicitly enabled. At this documentation update, **112 local tests passed and 7 live tests were skipped**. Live Aiven checks were executed during implementation separately; they are not equivalent to completing Google's interactive login with a real account.
+The local suite uses isolated in-memory SQLite; MySQL tests are skipped unless explicitly enabled. At this documentation update, **154 local tests passed and 7 live tests were skipped**. No live OpenAI request or live MySQL integration test was executed for this verification run.
 
 To opt into the live suite:
 
@@ -298,10 +440,13 @@ Use the existing variable names; no actual credentials are included here or in `
 | `GOOGLE_CLIENT_ID` | Required for Google login | Existing OAuth web client ID. |
 | `GOOGLE_CLIENT_SECRET` | Required for Google login | Existing OAuth web client secret. |
 | `APIFREAKS_API_KEY` | Required for profile IP checks | Server-side API Freaks credential, sent in a header. |
+| `OPENAI_API_KEY` | Required for A5 generation | Server-side OpenAI API credential. It is sent only in the backend Authorization header. |
+| `OPENAI_MODEL` | Required for A5 generation | Structured-Output-capable model requested from the Responses API, for example `gpt-4o-mini`. |
+| `OPENAI_TIMEOUT_SECONDS` | Optional | Provider timeout from 1 to 60 seconds; defaults to 20. Requests are not automatically retried. |
 | `FLASK_ENV` | Optional | `development`/default or `production`. |
 | `RUN_MYSQL_INTEGRATION` | Tests only, optional | `1` explicitly enables live database tests. |
 
-`API_KEY` and `AI_SERVICE_API_KEY` remain legacy configuration placeholders; they do not activate an implemented AI or search feature. No RAPIDAPI_KEY or DB_USERNAME aliases replace the actual MYSQL_ settings.
+`API_KEY` and `AI_SERVICE_API_KEY` remain legacy configuration placeholders and do not configure A5. Use the explicit `OPENAI_` variables above. No RAPIDAPI_KEY or DB_USERNAME aliases replace the actual MYSQL_ settings.
 
 ## Error Handling
 
@@ -312,6 +457,12 @@ Use the existing variable names; no actual credentials are included here or in `
 | Invalid sort/tab | Unknown sort becomes relevance; unknown tab becomes Browse. |
 | Invalid page number | Noninteger/negative/zero becomes 1; too-large values clamp to the final page. |
 | No results | Explicit no-results state with New search; no empty pagination navigation. |
+| Empty summary retrieval | The hosted model is not called and no summary row is created. |
+| Missing model configuration | Preserved search results plus a safe administrator-facing configuration message. |
+| Rate limit / timeout / refusal / provider failure | One bounded request, no unlimited retry, no persisted result, and a safe message on the original search. |
+| Invalid model output | Validation failure; malformed/extra fields or invalid citations are never persisted or displayed as success. |
+| Summary database read failure | Transaction rollback and return to preserved ordinary search results. |
+| Valid generation but failed save | Transaction rollback and an explicit “generated but not saved” state; no history/detail link is claimed. |
 | Database errors | SQLAlchemy errors roll back; users receive a generic 503. Logs record the exception class rather than SQL parameters or credentials. |
 | Invalid CRUD input | Required/type/length/severity/IP/JSON/datetime validation rejects bad data. JSON API errors use 400, non-JSON writes use 415, oversized requests use 413. |
 | Ownership/CSRF | No identity gives API 401; another owner's record gives 404; missing/invalid form CSRF gives 400. |
@@ -339,102 +490,85 @@ These small, deliberately constructed examples verify behavior, not general retr
 
 ## Screenshots
 
-### Signed-in search in the running application
+### Search/results — actual application evidence
 
-The screenshot below was supplied by Nancy from the running application. It shows a signed-in search for `phishing`, the query preserved in the browser URL and search field, the Relevance selection, and one matching saved threat. My Profile, My Threats, and Sign out are visible in the navigation.
+The signed-in screenshot below was supplied from the running application. It shows a `phishing` query, preserved search state, relevance sorting, and a matching saved threat.
 
-![Nancy's signed-in phishing search with one matching saved threat](docs/screenshots/a4-signed-in-search.png)
+![Signed-in phishing search with one matching saved threat](docs/screenshots/a4-signed-in-search.png)
 
-### Filtered results
+The following real browser capture uses the isolated evaluation application and synthetic records. It demonstrates ranked results, not live Google authentication or live MySQL data.
 
-This complementary example narrows `cloud` to High severity and Credential Theft, leaving the matching threat visible while retaining the selections in the form.
+![Exact and partial names ranked above description matches](docs/screenshots/a4-search-results.png)
 
-![A4 keyword with severity and category filters](docs/screenshots/a4-search-filtered.png)
+### Existing error-state evidence
 
-### Pagination
+An unmatched query keeps the ordinary search interface available and presents an explicit no-results message.
 
-This example shows results 11-14 of 14 on page 2, with Previous navigation and Next disabled on the last page.
+![No matching threats and New search link](docs/screenshots/a4-search-no-results.png)
 
-![A4 second page with result range and Previous navigation](docs/screenshots/a4-search-pagination.png)
+Additional verified captures are available for [filtering](docs/screenshots/a4-search-filtered.png), [pagination](docs/screenshots/a4-search-pagination.png), and [alphabetical sorting](docs/screenshots/a4-search-sorted.png).
 
-### No-results state
+### A5 screenshot status and exact capture steps
 
-An unmatched query produces a clear message and a New search link so the user can try again.
+A5 summary screenshots were not captured during the documented automated verification because that run intentionally used mocked model responses and did not exercise a live OpenAI request or a live MySQL account. No placeholder or broken A5 image links are included.
 
-![A4 no matching threats and New search link](docs/screenshots/a4-search-no-results.png)
+To capture the required screens from a configured development instance:
 
-**Evaluation screenshot context:** all images except Nancy's supplied signed-in screenshot are real browser captures of the isolated evaluation application. That simulated account is labeled Synthetic Evaluation User. These additional captures demonstrate the interface using demo/synthetic data, not real Google authentication or live MySQL telemetry.
+1. Apply `migrations/20261122_01_add_stored_intelligence.sql`, configure the placeholder environment variables described above, start Flask, sign in, and ensure the account has several saved threats.
+2. Open **Search**, enter a query that returns saved threats, optionally select severity/category/sort, and capture the complete results state as `docs/screenshots/a5-search-results.png`.
+3. Select **Summarize results** once. While the button is disabled and the loading label is visible, optionally capture `docs/screenshots/a5-generation-loading.png`; after success, capture the generated summary, findings, source links, limitations, selected-count notice, timestamp, and model as `docs/screenshots/a5-generated-summary.png`.
+4. Expand **View validated structured JSON** and capture the escaped JSON block as `docs/screenshots/a5-structured-json.png`.
+5. Open **Summaries** and capture the owner-scoped history list as `docs/screenshots/a5-summary-history.png`. Open one stored generation and capture its request, output, metadata, and source-context snapshot as `docs/screenshots/a5-summary-detail.png`.
+6. To capture safe error handling, temporarily remove or rename `OPENAI_API_KEY` in the local `.env`, restart Flask, repeat the same search, and select **Summarize results**. Capture the clear configuration error plus preserved results as `docs/screenshots/a5-error-handling.png`, then restore the key and restart. Never place the key or `.env` contents in a screenshot.
 
-### Additional search evidence
+## Design Decisions and Limitations
 
-<details>
-<summary>Search form</summary>
+- **Capability choice:** summarization complements ThreatLense retrieval by synthesizing already-saved evidence. A5 intentionally excludes recommendation generation and danger classification so each statement can remain tied to supplied records.
+- **Prompt design:** the prompt separates trusted system rules, a server-built user request, retrieved data, and the strict schema. Source text is explicitly untrusted, which reduces prompt-injection risk.
+- **Retrieval integrity:** the server reruns the existing owner-scoped retrieval and ranking. Browser-submitted record bodies or IDs are never treated as generation context.
+- **Hallucination safeguards:** bounded/redacted context, explicit missing-data instructions, strict Structured Outputs, application validation, supplied-ID citation checks, immutable snapshots, and manual grounding review reduce risk. They cannot prove every statement is true or eliminate hallucinations.
+- **Traceability:** prompt version, actual model identifier, UTC timestamp, source IDs, request, validated output, and exact context snapshot make a saved generation reviewable after source records change.
+- **Safe presentation:** model text is escaped by Jinja, visually labeled as generated intelligence, and accompanied by original source links and readable escaped JSON.
 
-![A4 dedicated search form](docs/screenshots/a4-search-form.png)
+Remaining limitations:
 
-</details>
+- Literal substring retrieval does not understand synonyms, paraphrases, acronyms, or intent; the MFA evaluation demonstrates this. It also lacks stemming, Boolean matching, and semantic retrieval.
+- Ranking is rule-based, not learned or personalized. Search scans owner candidates and has no MySQL full-text index.
+- A summary uses at most five records and 12,000 UTF-8 context bytes, so it can cover only a disclosed subset. Long fields can be truncated to 3,500 characters.
+- The current threat schema lacks separate target, source URL, and source-date columns, so those context values are honestly `null` unless the database model is expanded.
+- A configured OpenAI account is required. Generation adds network latency, cost, rate-limit exposure, and provider availability risk; the implementation deliberately performs no unlimited retries.
+- JSON Schema compliance and valid citation IDs establish structure and provenance membership, not factual agreement. Human source review is still required.
+- Automated tests mock provider responses and use isolated SQLite. A live provider call and live MySQL migration/integration were not verified in the documented run.
+- Search telemetry/history and the A3 breach scraper are absent from the current working tree. GET search terms may appear in browser or access logs.
+- Browser workspace access depends on cookies; records should be transferred to a Google account before signing out when continued access is required.
 
-<details>
-<summary>Search results and relevance ranking</summary>
+## Future Work for A6
 
-![A4 exact and partial names ranked above description matches](docs/screenshots/a4-search-results.png)
+All items in this section are proposals, not current features.
 
-</details>
+1. **Evidence-based prioritization:** produce a review queue from deterministic evidence such as saved severity, source freshness, affected asset/target, source confidence, and corroborating record count. Every priority explanation should cite records and expose missing evidence.
+2. **Compare alternatives before selection:** evaluate deterministic scoring for transparency and repeatability; model-assisted prioritization for richer context but greater grounding/cost risk; and a hybrid approach that computes the score in code while using the model only to explain cited evidence. The hybrid is the leading proposal, but it adds implementation and evaluation complexity.
+3. **Evaluate retrieval improvements:** compare acronym/synonym expansion, MySQL full-text search, and embeddings against the existing labeled literal-search baseline. Measure precision, recall, ranking quality, latency, and cost rather than assuming semantic retrieval is better.
+4. **Collect explicit user feedback:** add optional helpful/not-helpful ratings, cited-finding corrections, and missing-evidence flags. Define retention and privacy rules before recording feedback; do not infer approval from passive usage.
+5. **Use feedback carefully:** review correction themes and grounding failures, create an anonymized evaluation set where permitted, and require measurable improvement before changing prioritization or prompt versions.
+6. **Preserve alternatives and human control:** show the deterministic factors, allow users to inspect and override priorities, and retain the original evidence and competing scores so a generated explanation never becomes the only decision basis.
 
-<details>
-<summary>Alphabetically sorted results</summary>
+## A5 Requirement Checklist
 
-![A4 alphabetical sort retained in the form](docs/screenshots/a4-search-sorted.png)
-
-</details>
-
-**Search-history/telemetry evidence:** no history screen or telemetry table exists to capture. The [evaluation artifact](docs/search-evaluation.json) explicitly records `search_telemetry_implemented: false` and lists the two model tables. This is a documented missing requirement, not a substitute claim that telemetry was implemented.
-
-Historical screenshots remain available: [homepage](docs/screenshots/homepage.png), [earlier Explore](docs/screenshots/explore.png), and [earlier filtering](docs/screenshots/filter.png). They predate the current A4 Search tab.
-
-To regenerate the evaluation screenshots (Nancy's supplied screenshot remains unchanged), optionally install the capture dependency and use an installed Edge browser:
-
-```powershell
-python -m pip install playwright
-python docs/evaluate_search.py --screenshots
-```
-
-Playwright is optional documentation tooling, not an application dependency. The utility starts and stops an isolated loopback preview server and does not replace the running application.
-
-## Design Decisions
-
-- Search incident names for focused discovery, descriptions for context, and mitigations for response guidance. Include categories and IDs for type/known-record lookup.
-- Use severity and category as filters because they are understandable structured fields. Keep severity out of relevance scoring so urgency and query relevance remain distinct.
-- Use transparent field weights: exact names outrank partial names, which outrank context-only matches. Stable name/ID ties make pagination repeatable for an unchanged dataset.
-- Display 10 records per page to limit visual load and rendered HTML. Batched retrieval preserves Python Unicode behavior, while acknowledging the remaining scan/ranking cost.
-- Scope by the trusted session before matching. Public examples and private records are separate collections.
-- Preserve original query text for user confirmation while processing a separate search value. Use bound SQLAlchemy parameters and HTML escaping.
-- Keep ingestion, HTTP handling, search processing, persistence, and templates in separate modules.
-- Future telemetry should support measured improvements to zero-result handling and later recommendations. Its absence currently prevents learning from real usage; any later implementation needs privacy and retention controls.
-
-## Known Limitations
-
-- Literal substring matching does not understand synonyms, paraphrases, acronyms, or intent; the MFA evaluation demonstrates this.
-- No stemming/lemmatization; some singular/plural forms may return different results.
-- Multiword input is one contiguous phrase; no Boolean operators or independent token matching.
-- Ranking is rule-based, not learned or personalized; no timestamps exist on threats for newest/oldest ordering.
-- Search has no full-text index, and every page request scans the owner's candidates. Compact ranking keys still grow with the match set.
-- Profiles/devices and externally acquired IP results are not keyword-searchable threat records.
-- Unknown filters yield no results rather than dedicated field validation errors.
-- GET queries remain visible in URLs and may be present in browser/access logs.
-- Search telemetry/history and the A3 breach scraper are absent from this A4 working tree.
-- Demo dashboard metrics are static; the AI service is a placeholder.
-- Browser workspace access depends on cookies; transfer to Google before signing out if those records need account access.
-
-## Future Work
-
-For A5 or later modules:
-
-1. Implement owner-scoped search telemetry/history with an additive migration, retention controls, nonblocking failure handling, and tests.
-2. Restore and validate the A3 breach scraper as an independent acquisition service; track source and freshness.
-3. Add acronym/synonym expansion (for example MFA and multifactor authentication), query suggestions, and autocomplete.
-4. Compare MySQL full-text retrieval with the current baseline on a larger labeled dataset; push eligible filters/ranking/pagination into indexed retrieval.
-5. Evaluate embeddings and semantic search for paraphrases and response guidance.
-6. Explore consent-based personalized ranking and recommendations once telemetry is available and evaluated.
-7. Add source-backed retrieval-augmented generation with citations and checks against unsupported answers.
-8. Improve incident dates, detail pages, acquisition history, and repeatable precision/recall/ranking evaluation.
+| A5 requirement | Status | Evidence or remaining gap |
+| --- | --- | --- |
+| Threat summarization selected and scoped | Implemented | Generates summaries, cited findings, and limitations; no recommendation or classification feature. |
+| Existing retrieval reused and ranking preserved | Implemented | `services.summary_context` calls the existing retrieval service and keeps page order. |
+| Bounded, honest context | Implemented | Five-record, 12,000-byte, and per-field limits; subset/truncation metadata; missing values retained. |
+| Versioned, source-grounded prompt | Implemented | `a5-threat-summary-v1` separates system rules, request, context, and schema and treats record instructions as untrusted. |
+| Configurable hosted model integration | Implemented | Backend OpenAI Responses API with strict Structured Outputs, server-side key, configured model, timeout, and no unlimited retry. |
+| Structured validation and citation checks | Implemented | Exact fields/types, content/list limits, malformed-output rejection, and supplied-context ID membership. |
+| Persistence and traceability | Implemented | `StoredIntelligence` saves request, validated JSON, prompt/model metadata, UTC time, source IDs, and exact context snapshot. |
+| Additive migration | Implemented; live application unverified | Migration script is present and non-destructive; it was not applied to a live MySQL instance during this verification. |
+| Search-page generation interface | Implemented | POST action preserves query, filters, sort, page, and results; duplicate submission guard and loading state are present. |
+| Generated output, JSON, history, and detail views | Implemented | Escaped display includes findings/source links, limitations, coverage, model/time, readable JSON, and owner-scoped stored history/detail. |
+| Failure handling and rollback | Implemented | Empty retrieval skips provider; configuration, rate, timeout, provider, validation, and database failures have safe messages; failed writes roll back. |
+| Automated A5 and regression tests | Implemented | Documented run: 154 passed and 7 skipped using mocked provider responses and isolated SQLite. |
+| Manual factual-grounding review | Checklist implemented; live review remains | Use `docs/a5-grounding-checklist.md`; no live-provider output was claimed or reviewed in the documented run. |
+| Required A5 screenshots | Remaining documentation gap | Exact capture steps and suggested filenames are listed above; no unverified or broken screenshot links were added. |
+| Live OpenAI and MySQL verification | Remaining environment gap | Requires valid external credentials/services and a safe target database; neither is claimed as completed. |

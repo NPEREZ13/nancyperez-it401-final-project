@@ -7,6 +7,7 @@ from config import BASE_DIR, config, configure_database
 from models import db
 from routes.main import register_routes
 from routes.search import register_search_routes
+from services.ai_service import AiService
 
 
 def create_app(config_name=None, test_config=None):
@@ -20,6 +21,9 @@ def create_app(config_name=None, test_config=None):
         GOOGLE_CLIENT_ID=os.environ.get("GOOGLE_CLIENT_ID"),
         GOOGLE_CLIENT_SECRET=os.environ.get("GOOGLE_CLIENT_SECRET"),
         APIFREAKS_API_KEY=os.environ.get("APIFREAKS_API_KEY"),
+        OPENAI_API_KEY=os.environ.get("OPENAI_API_KEY"),
+        OPENAI_MODEL=os.environ.get("OPENAI_MODEL"),
+        OPENAI_TIMEOUT_SECONDS=os.environ.get("OPENAI_TIMEOUT_SECONDS", "20"),
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=config_name == "production",
@@ -29,6 +33,11 @@ def create_app(config_name=None, test_config=None):
         app.config.update(test_config)
     if not app.config.get("SECRET_KEY"):
         raise RuntimeError("Set SECRET_KEY to a strong random value in .env.")
+    app.extensions["summary_generator"] = AiService(
+        api_key=app.config.get("OPENAI_API_KEY"),
+        model=app.config.get("OPENAI_MODEL"),
+        timeout_seconds=app.config.get("OPENAI_TIMEOUT_SECONDS"),
+    )
     configure_database(app)
     db.init_app(app)
     from services.mitigation import MITIGATION_OPTIONS
@@ -47,8 +56,10 @@ def create_app(config_name=None, test_config=None):
     register_routes(app)
     register_search_routes(app)
     from routes.records import records
+    from routes.summaries import summaries
     from services.migration import register_migration_command
     app.register_blueprint(records)
+    app.register_blueprint(summaries)
     register_migration_command(app)
 
     from sqlalchemy.exc import SQLAlchemyError

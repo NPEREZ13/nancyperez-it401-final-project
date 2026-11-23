@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Saved Summaries{% endblock %}
+
+{% block content %}
+<section class="page-intro">
+    <p class="eyebrow">Generated analysis history</p>
+    <h1>Saved summaries</h1>
+    <p>
+        Revisit validated generated summaries and the exact ranked context used for
+        each generation. Original threat records remain separate from these artifacts.
+    </p>
+</section>
+
+<div class="form-actions explore-actions">
+    <a class="button button-primary" href="{{ url_for('explore', tab='search') }}">Search threats</a>
+</div>
+
+<section class="summary-history" aria-label="Saved generated summaries">
+    {% for item in summaries %}
+    <article class="summary-history-card">
+        <div class="summary-card-heading">
+            <span class="generated-badge">Generated summary</span>
+            <span class="threat-id">#{{ item.id }}</span>
+        </div>
+        <h2>{{ item.user_request }}</h2>
+        <p>{{ item.generated_output.get('summary', 'Validated summary unavailable.') }}</p>
+        <dl class="summary-meta">
+            <div><dt>Generated</dt><dd>{{ item.generated_at_utc.strftime('%Y-%m-%d %H:%M:%S') }} UTC</dd></div>
+            <div><dt>Model</dt><dd>{{ item.model_identifier }}</dd></div>
+            <div><dt>Sources</dt><dd>{{ item.source_record_ids | length }} selected records</dd></div>
+        </dl>
+        <a class="button" href="{{ url_for('summaries.detail', summary_id=item.id) }}">View summary and context</a>
+    </article>
+    {% else %}
+    <div class="empty-state">
+        <h2>No saved summaries</h2>
+        <p>Search your saved threats and choose Summarize results to create one.</p>
+        <a href="{{ url_for('explore', tab='search') }}">Go to Search</a>
+    </div>
+    {% endfor %}
+</section>
+{% endblock %}

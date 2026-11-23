@@ -12,6 +12,8 @@ def register_search_routes(app):
 
 
 def explore():
+    from routes.summaries import ensure_summary_form_tokens
+    ensure_summary_form_tokens()
     context = prepare_explore(request.args, current_owner())
     pagination = context["pagination"]
     parameters = context.pop("page_parameters")

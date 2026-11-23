@@ -6,7 +6,7 @@ import secrets
 from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, session, url_for
 from sqlalchemy.exc import SQLAlchemyError
 
-from models import ProfileDevice, UserThreat, db
+from models import ProfileDevice, StoredIntelligence, UserThreat, db
 from services import devices
 from services.ip_threat import IPThreatError, analyze_ip, normalize_ip
 from services.records import account_owner, browser_owner, validate_record
@@ -57,7 +57,7 @@ def index():
     workspace = browser_owner()
     workspace_count = 0
     if workspace:
-        for model in (UserThreat, ProfileDevice):
+        for model in (UserThreat, ProfileDevice, StoredIntelligence):
             workspace_count += db.session.scalar(db.select(db.func.count()).select_from(model).where(model.owner_sub == workspace))
     return render_template("profile.html", devices=records, selected=selected, result=result,
                            workspace_count=workspace_count)
@@ -118,7 +118,7 @@ def import_workspace():
     """Move only the workspace proven by this signed browser session."""
     workspace = browser_owner()
     if workspace:
-        for model in (UserThreat, ProfileDevice):
+        for model in (UserThreat, ProfileDevice, StoredIntelligence):
             db.session.execute(db.update(model).where(model.owner_sub == workspace).values(owner_sub=account_owner()))
         db.session.commit()
         session.pop("workspace_owner_sub", None)
